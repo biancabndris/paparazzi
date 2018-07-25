@@ -21,8 +21,8 @@
     <define name="MT9F002_X_ODD_INC_VAL" value="1"/>
     <define name="MT9F002_Y_ODD_INC_VAL" value="1"/>
 
-    <define name="LIMIT_EVENT_POLLING" value="false"/>
-	
+    <define name="LIMIT_EVENT_POLING" value="0"/>
+
     <define name="USE_SONAR" value="true"/>
 
 	<!-- Subsystem section -->
@@ -46,7 +46,7 @@
     </module-->
 
     <module name="bebop_ae_awb"/>
-    <module name="computation_time"/>
+    <module name="computation_time_v2"/>
   </modules>
 
   <commands>
