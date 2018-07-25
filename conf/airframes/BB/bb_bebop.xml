@@ -46,7 +46,7 @@
     </module-->
 
     <module name="bebop_ae_awb"/>
-    <module name="computation_time_v2"/>
+    <module name="path_integral_controller"/>
   </modules>
 
   <commands>

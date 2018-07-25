@@ -1,17 +1,17 @@
 <!DOCTYPE module SYSTEM "module.dtd">
 
-<module name="computation_time_v2">
+<module name="path_integral_controller">
   <doc>
     <description>Run a path integral algorithm and measure the running time needed to perform the computations</description>
   </doc>
   <header>
-    <file name="computation_time.h"/>
+    <file name="path_integral_controller.h"/>
   </header>
   <init fun="pi_init()"/>
-  <periodic fun="compute_optimal_controls_periodic()" freq="15"/>
+  <periodic fun="compute_optimal_controls_periodic()" freq="4"/>
   <makefile target="ap">
-    <file name="computation_time.c"/>
-    <file name="pi_controller.c"/>
+    <file name="path_integral_controller.c"/>
+    <file name="sampler.c"/>
     <flag name="LDFLAGS" value="lgsl"/>
   </makefile>
 </module>
