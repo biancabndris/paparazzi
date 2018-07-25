@@ -1,0 +1,21 @@
+<!DOCTYPE module SYSTEM "module.dtd">
+
+<module name="computation_time">
+  <doc>
+    <description>Run a path integral algorithm and measure the running time needed to perform the computations</description>
+  </doc>
+  <header>
+    <file name="computation_time.h"/>
+  </header>
+  <init fun="pi_init()"/>
+  <makefile target="ap">
+    <file name="computation_time.c"/>
+    <file name="main_function.cpp"/>
+    <file name="pi/PIController.cpp"/>
+    <file name="pi/ModelHoldingPattern.cpp"/>
+    <flag name="CXXFLAGS" value="std=c++11"/>
+    <flag name="LDFLAGS" value="lgsl"/>
+    <flag name="LDFLAGS" value="lgslcblas"/>
+  </makefile>
+</module>
+
