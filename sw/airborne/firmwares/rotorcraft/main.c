@@ -43,6 +43,8 @@ int main(void)
 {
   main_init();
 
+#define LIMIT_EVENT_POLLING 0
+
 #if LIMIT_EVENT_POLLING
   /* Limit main loop frequency to 1kHz.
    * This is a kludge until we can better leverage threads and have real events.
@@ -50,6 +52,7 @@ int main(void)
    * resulting on 100% cpu load on boards with an (RT)OS.
    * On bare metal boards this is not an issue, as you have nothing else running anyway.
    */
+  printf("Limit event polling is on")
   uint32_t t_begin = 0;
   uint32_t t_diff = 0;
   while (1) {
