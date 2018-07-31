@@ -18,17 +18,17 @@
 
 
 struct PIController{
-   int8_t T;
+   uint8_t T;
    float dt;
-   int16_t iT;
-   int8_t H;
+   uint16_t iT;
+   uint8_t H;
    float dh;
-   int16_t iH;
+   uint16_t iH;
    float nu;
    float R;
    float var;
    float lambda;
-   int16_t N;
+   uint16_t N;
    float COLLISION_DISTANCE;
    float COHESION_DISTANCE;
    float COLLISION_PENALTY;
@@ -39,9 +39,9 @@ struct PIController{
    float MAX_SPEED;
    float PARALLEL_THR;
 
-   int8_t units;
-   int8_t dimX;
-   int8_t dimU;
+   uint8_t units;
+   uint8_t dimX;
+   uint8_t dimU;
    float state[4];
    float followers[2][4];
 
@@ -55,7 +55,8 @@ struct PIController;
 
 
 extern void PIController_init(struct PIController *);
-extern void compute_optimal_controls(struct PIController *ptr);
+extern void compute_optimal_controls(const struct PIController *ptr);
+extern void compute_optimal_controls_followers(const struct PIController *ptr);
 
 //extern void PIController_shiftControls(struct PIController *);
 

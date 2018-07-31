@@ -29,22 +29,6 @@ struct PIController pi;
 void pi_init() {
 
   PIController_init(&pi);
-  printf("------PIController Initialized----------\n");
-
-  //clock_t start, end;
-  //float cpu_time_used;
-
-  //printf("------Computing controls----------");
-  //start = clock();
-
-  //compute_optimal_controls(&pi);
-
-  //end = clock();
-
-  //printf("*controls %f\n", *controls);
-  //cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
-
-  //printf("------ ELAPSED TIME: %f\n----------",cpu_time_used);
 
 }
 
@@ -54,9 +38,9 @@ void compute_optimal_controls_periodic(){
   clock_t start, end;
   float cpu_time_used;
 
-  printf("------Computing controls----------");
+
   start = clock();
-  compute_optimal_controls(&pi);
+  compute_optimal_controls(&pi);//compute_optimal_controls(&pi);
   end = clock();
 
   //printf("*controls %f\n", *controls);
@@ -66,32 +50,4 @@ void compute_optimal_controls_periodic(){
   //printf("Controls 0: %f , Controls 1: %f\n", *controls, *controls++);
 }
 
-/*
-  // Main simulation loop
-  for (int t=0; t< pi.iT; t++ ) {
-
-    // Print iteration number
-    if (t % 10 == 0 ) {printf("%d/%d\n", t, pi.iT);};
-    PIController_shiftControls(ptr);
-
-    for (int i = 0; i < pi.units; i++ ){
-
-      if i == 0{
-        bool leader = 1;
-
-
-
-
-      }
-      else{
-        bool follower = 1;
-
-      }
-
-    }
-
-  }
-
-}
-*/
 
