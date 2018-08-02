@@ -33,14 +33,14 @@ void PIController_init(struct PIController *ptr)
     ptr->R                  = 1;
     ptr->var                = ptr->nu*ptr->dh;
     ptr->lambda             = ptr->R*ptr->nu;
-    ptr->N                  = 1000;
+    ptr->N                  = 10;
     ptr->COLLISION_DISTANCE = 2.25;//1.5;
     ptr->COHESION_DISTANCE  = 6.25;//2.5;
-    ptr->COLLISION_PENALTY  = 10*ptr->COLLISION_DISTANCE;
-    ptr->COHESION_PENALTY   = 5;//10*ptr->COHESION_DISTANCE;
-    ptr->TARGET_PENALTY     = 10;
+    ptr->COLLISION_PENALTY  = 10*ptr->COLLISION_DISTANCE;;// //1000
+    ptr->COHESION_PENALTY   = 5;//*ptr->COHESION_DISTANCE;;////10*ptr->COHESION_DISTANCE;
+    ptr->TARGET_PENALTY     = 50;//10;
     ptr->HEADING_PENALTY    = 2;
-    ptr->PARALLEL_PENALTY   = 10;
+    ptr->PARALLEL_PENALTY   = 10;//1000;
     ptr->MAX_SPEED          = 1.5;
     ptr->PARALLEL_THR       = 0.3;
 
@@ -52,16 +52,16 @@ void PIController_init(struct PIController *ptr)
     ptr->state[0]           = 2;//3;
     ptr->state[1]           = 6;//4;
     ptr->state[2]           = 0;
-    ptr->state[3]           = 1;//0; for paralel constrsint
+    ptr->state[3]           = 0; //for paralel constrsint
 
-    ptr->followers[0][0]    = 3;//2;
+    ptr->followers[0][0]    = 4;//2;
     ptr->followers[0][1]    = 4;//6;
     ptr->followers[0][2]    = 0;
-    ptr->followers[0][3]    = 0;
+    ptr->followers[0][3]    = 0.2;
 
     ptr->followers[1][0]    = 2;
     ptr->followers[1][1]    = 2;
-    ptr->followers[1][2]    = 1;//0;
+    ptr->followers[1][2]    = 0.2;//0;
     ptr->followers[1][3]    = 0;
 
     ptr->wps[0]             = 13;
@@ -114,18 +114,7 @@ void compute_optimal_controls(const struct PIController *ptr){
   for (int n=ptr->N; n--;){ // n < ptr->N; n++ ){
 
     samples_cost[n] = 0;
-    //start_random = clock();
-    //for (int h=0; h<ptr->iH; h++) {
-    //  for(int i=0; i<ptr->dimU; i++) {
-    //    noise[n][h][i] = gsl_ran_gaussian(r,1.) * stdv;
-    //    u_roll[h][i] = ptr->u_exp[h][i] + noise[n][h][i];
-    //   }
-    //  samples_cost[n] = 0;
-    //}
-    //end_random = clock();
-    //random = ((double) (end_random - start_random)) / CLOCKS_PER_SEC;
 
-    //printf("Print some noise values %f, %f, %f\n",noise[n][1][0], noise[n][3][1],noise[n][2][0]);
     //start_assign= clock();
     for (int i = 0; i< 4; i++){
       leader_state[i] = ptr->state[i];
@@ -156,7 +145,10 @@ void compute_optimal_controls(const struct PIController *ptr){
 
       for(int a=0; a < ptr->units-1; a++){
         float dist_unit = (leader_state[0]-  followers_state[a][0]) * (leader_state[0]- followers_state[a][0]) + (leader_state[1]- followers_state[a][1]) * (leader_state[1]- followers_state[a][1]);
-        samples_cost[n] += exp(ptr->COLLISION_PENALTY *(ptr->COLLISION_DISTANCE - dist_unit));
+
+        if(dist_unit > ptr->COLLISION_DISTANCE ){}
+        else{ samples_cost[n] += exp(ptr->COLLISION_PENALTY *(ptr->COLLISION_DISTANCE - dist_unit));}
+
       }
 
       // Propagate leader unit
@@ -172,7 +164,6 @@ void compute_optimal_controls(const struct PIController *ptr){
       }
 
     }
-
 
 
     if(samples_cost[n] < min_cost) {min_cost = samples_cost[n];}
@@ -232,9 +223,6 @@ void compute_optimal_controls(const struct PIController *ptr){
 }
 
 
-
-
-
 /**
  * Function that computes the optimal controls
  */
@@ -260,14 +248,6 @@ void compute_optimal_controls_followers(const struct PIController *ptr){
 
     samples_cost[n] = 0;
 
-    //for (int h=0; h<ptr->iH; h++) {
-    //  for(int i=0; i<ptr->dimU; i++) {
-    //    noise[n][h][i] = gsl_ran_gaussian(r,1.) * stdv;
-    //   u_roll[h][i] = ptr->u_exp[h][i] + noise[n][h][i];
-    //   }
-
-    //}
-    //printf("Print some noise values %f, %f, %f\n",noise[n][1][0], noise[n][3][1],noise[n][2][0]);
 
     for (int i = 0; i< 4; i++){
       leader_state[i] = ptr->state[i];
@@ -288,23 +268,25 @@ void compute_optimal_controls_followers(const struct PIController *ptr){
 
 
       samples_cost[n] += ptr->R * 0.5 * abs(u_roll[h][0]*u_roll[h][0] + u_roll[h][1]*u_roll[h][1]);
-
+      //printf("Control cost is:%f\n",samples_cost[n]);
 
       //printf("dist leader cost, %f, %f, %f\n",  samples_cost[n], u_roll[h][0],u_roll[h][1]);
 
       float dist_leader = (leader_state[0]- followers_state[0][0]) * (leader_state[0]- followers_state[0][0]) + (leader_state[1]- followers_state[0][1]) * (leader_state[1]- followers_state[0][1]);
-      samples_cost[n] += exp(ptr->COHESION_PENALTY *(dist_leader - ptr->COHESION_DISTANCE));
-
-
-
+      if(dist_leader < ptr->COHESION_DISTANCE ){}
+      else{ samples_cost[n] += exp(ptr->COHESION_PENALTY *(dist_leader - ptr->COHESION_DISTANCE));}
+      //printf("Samples cost cohesion %f, %f \n",  samples_cost[n], dist_leader);
       for(int a=0; a < ptr->units-1; a++){
         float dist_unit = (leader_state[0]-  followers_state[a][0]) * (leader_state[0]- followers_state[a][0]) + (leader_state[1]- followers_state[a][1]) * (leader_state[1]- followers_state[a][1]);
-        samples_cost[n] += exp(ptr->COLLISION_PENALTY *(ptr->COLLISION_DISTANCE - dist_unit));
-
+        if(dist_unit > ptr->COLLISION_DISTANCE ){}
+        else{ samples_cost[n] += exp(ptr->COLLISION_PENALTY *(ptr->COLLISION_DISTANCE - dist_unit));}
+        //printf("Samples cost collision %f, %f \n",  samples_cost[n], dist_unit);
 
         float cross_product_3 = abs(leader_state[0] * followers_state[a][1] - leader_state[1] * followers_state[a][0]);
-        samples_cost[n] += exp(ptr->PARALLEL_PENALTY *(ptr->PARALLEL_THR - cross_product_3));
-        //printf("Samples cost 5 %f, %f \n",  samples_cost[n], cross_product_3);
+        if(cross_product_3 > ptr->PARALLEL_THR){}
+        else{samples_cost[n] += exp(ptr->PARALLEL_PENALTY *(ptr->PARALLEL_THR - cross_product_3));}
+        //printf("Samples cost parallel %f, %f \n",  samples_cost[n], cross_product_3);
+
       }
 
       // Propagate leader unit

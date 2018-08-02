@@ -40,7 +40,7 @@ void compute_optimal_controls_periodic(){
 
 
   start = clock();
-  compute_optimal_controls(&pi);//compute_optimal_controls(&pi);
+  compute_optimal_controls_followers(&pi);//compute_optimal_controls(&pi);
   end = clock();
 
   //printf("*controls %f\n", *controls);

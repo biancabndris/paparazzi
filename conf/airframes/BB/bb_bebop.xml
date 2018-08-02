@@ -1,7 +1,8 @@
 <!DOCTYPE airframe SYSTEM "../airframe.dtd">
 
 <airframe name="bebopBB">
-
+  <description> Path Integral controller Bebop
+  </description>
   <firmware name="rotorcraft">
     <target name="ap" board="bebop"/>
 
@@ -10,20 +11,9 @@
       <module name="udp"/>
     </target>
 
-    <define name="MT9F002_OUTPUT_HEIGHT" value="640" />
-    <define name="MT9F002_OUTPUT_WIDTH" value="640" />
-    <define name="MT9F002_TARGET_EXPOSURE" value="30" />
-    <define name="MT9F002_GAIN_GREEN1" value="4"/>
-    <define name="MT9F002_GAIN_GREEN2" value="4"/>
-    <define name="MT9F002_GAIN_RED" value="5"/>
-    <define name="MT9F002_GAIN_BLUE" value="5"/>
-    <define name="MT9F002_OUTPUT_SCALER" value="0.25"/>
-    <define name="MT9F002_X_ODD_INC_VAL" value="1"/>
-    <define name="MT9F002_Y_ODD_INC_VAL" value="1"/>
-
     <define name="LIMIT_EVENT_POLING" value="0"/>
 
-    <define name="USE_SONAR" value="true"/>
+    <define name="USE_SONAR" value="false"/>
 
 	<!-- Subsystem section -->
     <module name="telemetry" type="transparent_udp"/>
