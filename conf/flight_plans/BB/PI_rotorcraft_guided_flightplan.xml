@@ -1,6 +1,6 @@
-<!DOCTYPE flight_plan SYSTEM "flight_plan.dtd">
+<!DOCTYPE flight_plan SYSTEM "../flight_plan.dtd">
 
-<flight_plan alt="1" ground_alt="0" lat0="51.990634" lon0="4.376789" max_dist_from_home="5" name="Rotorcraft Optitrack (Delft)" security_height="0.3">
+<flight_plan alt="1.0" ground_alt="0" lat0="51.990634" lon0="4.376789" max_dist_from_home="5" name="Rotorcraft Guided" security_height="0.3">
   <header>
 #include "autopilot_guided.h"
 
@@ -31,8 +31,8 @@ static inline void obstacle_detection_cb(uint8_t sender_id __attribute__((unused
 	  <variable var="turn_angle" init="90.0f" type="float" min="-180" max="180" step="1"/>
 	  <variable var="turn_rate" init="0.5f" type="float" min="0." max="10." step="0.1"/>
     <variable var="climb_descent_vel" init="0.3f" type="float" min="0." max="1" step="0.1"/>
-    <variable var="forward_vel" init="0.5f" type="float" min="0." max="2" step="0.1"/>
-	  <variable var="nominal_alt" init="1.5" type="float" min="0." max="10." step="0.1"/>
+    <variable var="forward_vel" init="0.3f" type="float" min="0." max="2" step="0.1"/>
+	  <variable var="nominal_alt" init="1.0f" type="float" min="0." max="10." step="0.1"/>
 	</variables>
 
 <!--Example Guided flight plan:
@@ -62,7 +62,8 @@ Remember to choose AP_MODE_GUIDED or else it won't work!!!
     <block name="Take off">
       <set var="desired_heading" value="stateGetNedToBodyEulers_f()->psi"/>
       <call_once fun="autopilot_guided_update(GUIDED_FLAG_XY_OFFSET_Z_VEL,0.,0.,-climb_descent_vel,desired_heading)"/>
-      <while cond="LessThan(stateGetPositionEnu_f()->z,nominal_alt-0.2)"/>
+      <!--call_once fun="autopilot_guided_goto_ned_relative(0.,0.,-3.0,0.)"/-->
+      <while cond="LessThan(stateGetPositionEnu_f()->z,nominal_alt-0.2)"></while>
       <call_once fun="autopilot_guided_update(GUIDED_FLAG_XY_OFFSET,0.,0.,-nominal_alt,desired_heading)"/>
       <while cond="LessThan(stage_time,1)"/>
     </block>

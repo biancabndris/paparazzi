@@ -11,8 +11,6 @@
       <module name="udp"/>
     </target>
 
-    <define name="LIMIT_EVENT_POLING" value="0"/>
-
     <define name="USE_SONAR" value="false"/>
 
 	<!-- Subsystem section -->
@@ -21,7 +19,7 @@
     <module name="motor_mixing"/>
     <module name="actuators" type="bebop"/>
     <module name="imu" type="bebop"/>
-    <module name="gps" type="furuno"/>
+    <module name="gps" type="datalink"/>
     <module name="stabilization" type="int_quat"/>
     <module name="ahrs"          type="float_mlkf"/>
     <module name="ins" type="extended"/>
@@ -31,12 +29,11 @@
     <module name="geo_mag"/>
     <module name="air_data"/>
     <module name="send_imu_mag_current"/>
-    <!--module name="logger_file">
+     <module name="logger_file">
       <define name="FILE_LOGGER_PATH" value="/data/ftp/internal_000"/>
-    </module-->
-
-    <module name="bebop_ae_awb"/>
-    <module name="path_integral_controller"/>
+    </module>
+    <module name="pose_history"/>
+   <module name="path_integral_controller"/>
   </modules>
 
   <commands>
@@ -185,6 +182,7 @@
     <define name="MODE_MANUAL" value="AP_MODE_ATTITUDE_DIRECT"/>
     <define name="MODE_AUTO1" value="AP_MODE_ATTITUDE_Z_HOLD"/>
     <define name="MODE_AUTO2" value="AP_MODE_NAV"/>
+    <!--define name="NO_RC_THRUST_LIMIT" value="TRUE" /-->
   </section>
 
   <section name="BAT">
