@@ -13,8 +13,13 @@
 #ifndef COMPUTATION_TIME_H
 #define COMPUTATION_TIME_H
 
-
+float optimal_control[2];
 void pi_init(void);
 void compute_optimal_controls_periodic(void);
+
+
+static inline float * get_pi_optimal_controls(void){
+  return optimal_control;
+}
 #endif
 

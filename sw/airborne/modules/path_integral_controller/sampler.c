@@ -20,6 +20,7 @@
 
 #include  <time.h>
 
+
 void PIController_init(struct PIController *ptr)
 {
 
@@ -33,14 +34,14 @@ void PIController_init(struct PIController *ptr)
     ptr->R                  = 1;
     ptr->var                = ptr->nu*ptr->dh;
     ptr->lambda             = ptr->R*ptr->nu;
-    ptr->N                  = 10;
-    ptr->COLLISION_DISTANCE = 2.25;//1.5;
-    ptr->COHESION_DISTANCE  = 6.25;//2.5;
-    ptr->COLLISION_PENALTY  = 10*ptr->COLLISION_DISTANCE;;// //1000
-    ptr->COHESION_PENALTY   = 5;//*ptr->COHESION_DISTANCE;;////10*ptr->COHESION_DISTANCE;
-    ptr->TARGET_PENALTY     = 50;//10;
+    ptr->N                  = 1000;
+    ptr->COLLISION_DISTANCE = 2.25;       //1.5;
+    ptr->COHESION_DISTANCE  = 6.25;       //2.5;
+    ptr->COLLISION_PENALTY  = 10;         //10*ptr->COLLISION_DISTANCE;;// //1000
+    ptr->COHESION_PENALTY   = 5;          //*ptr->COHESION_DISTANCE;;////10*ptr->COHESION_DISTANCE;
+    ptr->TARGET_PENALTY     = 50;         //10;
     ptr->HEADING_PENALTY    = 2;
-    ptr->PARALLEL_PENALTY   = 10;//1000;
+    ptr->PARALLEL_PENALTY   = 10;         //1000;
     ptr->MAX_SPEED          = 1.5;
     ptr->PARALLEL_THR       = 0.3;
 
@@ -64,8 +65,8 @@ void PIController_init(struct PIController *ptr)
     ptr->followers[1][2]    = 0.2;//0;
     ptr->followers[1][3]    = 0;
 
-    ptr->wps[0]             = 13;
-    ptr->wps[1]             = 4;
+    ptr->wps[0]             = 1.25;
+    ptr->wps[1]             = 1.25;
     ptr->wps[2]             = 4;
     ptr->wps[3]             = 13;
 
@@ -75,16 +76,12 @@ void PIController_init(struct PIController *ptr)
       }
     }
 
-    //float *u_exp_ptr_original = ptr->u_exp[0];
-    //printf("Before the float_mat_zero\n");
-    //float_mat_zero(&u_exp_ptr_original, 5,2);
-    //printf("After the float_mat_zero\n");
 }
 
 
 
 /**
- * Function that computes the optimal controls
+ * Function that computes the optimal controls for the leader unit
  */
 void compute_optimal_controls(const struct PIController *ptr){
 
@@ -176,6 +173,7 @@ void compute_optimal_controls(const struct PIController *ptr){
   printf("Min cost is:%f\n",min_cost);
   //printf("Max cost is:%f\n",max_cost);
 
+  // Compute weight of all samples N
   float w[ptr->N];
   float w_sum = 0;
   for (int n=0; n < ptr->N; ){
@@ -224,7 +222,7 @@ void compute_optimal_controls(const struct PIController *ptr){
 
 
 /**
- * Function that computes the optimal controls
+ * Function that computes the optimal controls for a follower unit
  */
 void compute_optimal_controls_followers(const struct PIController *ptr){
 
@@ -244,6 +242,8 @@ void compute_optimal_controls_followers(const struct PIController *ptr){
   //float_vect_zero(&samples_cost, ptr->N);
 
   float inv_lambda = 1/ ptr->lambda;
+
+  // Create and compute cost of all samples N
   for (int n=ptr->N; n--; ){
 
     samples_cost[n] = 0;
@@ -265,6 +265,7 @@ void compute_optimal_controls_followers(const struct PIController *ptr){
         noise[n][h][i] = gsl_ran_gaussian(r,1.) * stdv;
         u_roll[h][i] = ptr->u_exp[h][i] + noise[n][h][i];
        }
+
 
 
       samples_cost[n] += ptr->R * 0.5 * abs(u_roll[h][0]*u_roll[h][0] + u_roll[h][1]*u_roll[h][1]);
@@ -310,6 +311,7 @@ void compute_optimal_controls_followers(const struct PIController *ptr){
   printf("Min cost is:%f\n",min_cost);
   //printf("Max cost is:%f\n",max_cost);
 
+  // Compute weight of all samples N
   float w[ptr->N];
   float w_sum = 0;
   for (int n=0; n < ptr->N;){
