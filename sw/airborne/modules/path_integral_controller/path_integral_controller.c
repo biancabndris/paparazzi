@@ -24,11 +24,12 @@
 #include <gsl/gsl_randist.h>
 #include <stdlib.h>
 
-struct PIController pi;
+
 
 void pi_init() {
 
-  PIController_init(&pi);
+  PIController_init();//&pi
+  initInput(); //&in
 
 }
 
@@ -38,16 +39,17 @@ void compute_optimal_controls_periodic(){
   clock_t start, end;
   float cpu_time_used;
 
+  setState(); //&st
 
   start = clock();
-  compute_optimal_controls_followers(&pi);//compute_optimal_controls(&pi);
+  compute_optimal_controls(); //&pi, &st, &in//compute_optimal_controls(&pi);
   end = clock();
 
   //printf("*controls %f\n", *controls);
   cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
 
   printf("------ ELAPSED TIME: %f\n----------",cpu_time_used);
-  //printf("Controls 0: %f , Controls 1: %f\n", *controls, *controls++);
+  printf("Controls 0: %f , Controls 1: %f\n", in.oc_x, in.oc_y);
 }
 
 

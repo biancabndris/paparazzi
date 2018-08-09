@@ -39,7 +39,7 @@
 #include "firmwares/fixedwing/stabilization/stabilization_adaptive.h"
 #endif
 
-#include "path_integral_controller/path_integral_controller.h"
+#include "path_integral_controller/sampler.h"
 
 #include "state.h"
 
@@ -115,10 +115,10 @@ void file_logger_periodic(void)
     return;
   }
   static uint32_t counter;
-  struct Int32Quat *quat = stateGetNedToBodyQuat_i();
+  //struct Int32Quat *quat = stateGetNedToBodyQuat_i();
   struct NedCoor_f *pos  = stateGetPositionNed_f();
   struct NedCoor_f *vel  = stateGetSpeedNed_f();
-  float  *op_control     = get_pi_optimal_controls();
+  struct Input  *controls = get_pi_optimal_controls();
 
 #ifdef COMMAND_THRUST //For example rotorcraft
   fprintf(file_logger, "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%f,%f,%f,%f,%f,%f,%f,%f\n",
@@ -142,8 +142,8 @@ void file_logger_periodic(void)
           vel->x,
           vel->y,
           vel->z,
-          op_control[0],
-          op_control[1]//quat->qz
+          controls->oc_x,
+          controls->oc_y//quat->qz
          );
 #else
   fprintf(file_logger, "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",

@@ -5,7 +5,7 @@
  *
  */
 /**
- * @file "modules/computation_time_v2/PIControllerptr->c"
+ * @file "modules/computation_time_v2/PIControllerpi.c"
  * @author Bianca Bendris
  *
  */
@@ -21,58 +21,42 @@
 #include  <time.h>
 
 
-void PIController_init(struct PIController *ptr)
+void PIController_init()
 {
 
-    ptr->T                  = 10;
-    ptr->dt                 = 0.04;
-    ptr->iT                 = 500;
-    ptr->H                  = 1;
-    ptr->dh                 = 0.2;
-    ptr->iH                 = 5;
-    ptr->nu                 = 1;
-    ptr->R                  = 1;
-    ptr->var                = ptr->nu*ptr->dh;
-    ptr->lambda             = ptr->R*ptr->nu;
-    ptr->N                  = 1000;
-    ptr->COLLISION_DISTANCE = 2.25;       //1.5;
-    ptr->COHESION_DISTANCE  = 6.25;       //2.5;
-    ptr->COLLISION_PENALTY  = 10;         //10*ptr->COLLISION_DISTANCE;;// //1000
-    ptr->COHESION_PENALTY   = 5;          //*ptr->COHESION_DISTANCE;;////10*ptr->COHESION_DISTANCE;
-    ptr->TARGET_PENALTY     = 50;         //10;
-    ptr->HEADING_PENALTY    = 2;
-    ptr->PARALLEL_PENALTY   = 10;         //1000;
-    ptr->MAX_SPEED          = 1.5;
-    ptr->PARALLEL_THR       = 0.3;
+    pi.T                  = 10;
+    pi.dt                 = 0.04;
+    pi.iT                 = 500;
+    pi.H                  = 1;
+    pi.dh                 = 0.2;
+    pi.iH                 = 5;
+    pi.nu                 = 1;
+    pi.R                  = 1;
+    pi.var                = pi.nu*pi.dh;
+    pi.lambda             = pi.R*pi.nu;
+    pi.N                  = 1000;
+    pi.COLLISION_DISTANCE = 2.25;       //1.5;
+    pi.COHESION_DISTANCE  = 6.25;       //2.5;
+    pi.COLLISION_PENALTY  = 10;         //10*pi.COLLISION_DISTANCE;;// //1000
+    pi.COHESION_PENALTY   = 5;          //*pi.COHESION_DISTANCE;;////10*pi.COHESION_DISTANCE;
+    pi.TARGET_PENALTY     = 50;         //10;
+    pi.HEADING_PENALTY    = 2;
+    pi.PARALLEL_PENALTY   = 10;         //1000;
+    pi.MAX_SPEED          = 1.5;
+    pi.PARALLEL_THR       = 0.3;
 
-    ptr->units              = 3;
-    ptr->dimX               = 2;
-    ptr->dimU               = 2;
+    pi.units              = 3;
+    pi.dimX               = 2;
+    pi.dimU               = 2;
 
+    pi.wps[0]             = 1.25;
+    pi.wps[1]             = 1.25;
+    pi.wps[2]             = 4;
+    pi.wps[3]             = 13;
 
-    ptr->state[0]           = 2;//3;
-    ptr->state[1]           = 6;//4;
-    ptr->state[2]           = 0;
-    ptr->state[3]           = 0; //for paralel constrsint
-
-    ptr->followers[0][0]    = 4;//2;
-    ptr->followers[0][1]    = 4;//6;
-    ptr->followers[0][2]    = 0;
-    ptr->followers[0][3]    = 0.2;
-
-    ptr->followers[1][0]    = 2;
-    ptr->followers[1][1]    = 2;
-    ptr->followers[1][2]    = 0.2;//0;
-    ptr->followers[1][3]    = 0;
-
-    ptr->wps[0]             = 1.25;
-    ptr->wps[1]             = 1.25;
-    ptr->wps[2]             = 4;
-    ptr->wps[3]             = 13;
-
-    for(int h=0; h<ptr->iH; h++) {
-      for(int u=0; u<ptr->dimU; u++) {
-        ptr->u_exp[h][u] = 0;
+    for(int h=0; h<pi.iH; h++) {
+      for(int u=0; u<pi.dimU; u++) {
+        pi.u_exp[h][u] = 0;
       }
     }
 
@@ -83,100 +67,80 @@ void PIController_init(struct PIController *ptr)
 /**
  * Function that computes the optimal controls for the leader unit
  */
-void compute_optimal_controls(const struct PIController *ptr){
+void compute_optimal_controls( ){
 
-  //struct PIController pi = *ptr;
-
-
-  float noise[ptr->N][ptr->iH][ptr->dimU];
-  float u_roll[ptr->iH][ptr->dimU];
-
+  float noise[pi.N][pi.iH][pi.dimU];
+  float u_roll[pi.iH][pi.dimU];
   gsl_rng *r = gsl_rng_alloc(gsl_rng_mt19937);
-  float stdv = sqrt(ptr->var);
-  float samples_cost[ptr->N];
-  float leader_state[4];
-  float followers_state[2][4];
-  //float *followers_ptr = followers_state[0];
-  //float *followers_ptr_original = ptr->followers[0];
+  float stdv = sqrt(pi.var);
+  float samples_cost[pi.N];
+  struct PIstate internal_state;
   float min_cost = 10000;
-  float max_cost = 0;
-  //float_vect_zero(&samples_cost, ptr->N);
-  //clock_t start_if, stop_if,start_main, end_main, start_assign, end_assign,start_random, end_random;
-  //float if_cond, main_time, assign, random;
+  float inv_lambda = 1/pi.lambda;
 
-
-  float inv_lambda = 1/ptr->lambda;
-
-  //start_main = clock();
-  for (int n=ptr->N; n--;){ // n < ptr->N; n++ ){
+  // Create and compute cost of all samples N
+  for (int n=pi.N; n--;){ // n < pi.N; n++ ){
 
     samples_cost[n] = 0;
 
-    //start_assign= clock();
-    for (int i = 0; i< 4; i++){
-      leader_state[i] = ptr->state[i];
+
+    for (int i = 0; i< 2; i++){
+      internal_state.pos[i] = st.pos[i];
+      internal_state.vel[i] = st.vel[i];
       for (int o = 0; o<2; o++){
-        followers_state[o][i] = ptr->followers[o][i];
+        internal_state.pos_rel[o+2*i] = st.pos_rel[o+2*i];
+        internal_state.vel_rel[o+2*i] = st.vel_rel[o+2*i];
       }
     }
-    //end_assign = clock();
-    //assign = ((double) (end_assign - start_assign)) / CLOCKS_PER_SEC;
 
-    //float_vect_copy(&leader_state[0], &ptr->state[0], 4);
-    //float_mat_copy(&followers_ptr, &followers_ptr_original, 2, 4);
+    for (int h=0; h< pi.iH; h++){
 
-    for (int h=0; h< ptr->iH; h++){
-
-      for(int i=0; i<ptr->dimU; i++) {
+      for(int i=0; i<pi.dimU; i++) {
         noise[n][h][i] = gsl_ran_gaussian(r,1.) * stdv;
-        u_roll[h][i] = ptr->u_exp[h][i] + noise[n][h][i];
+        u_roll[h][i] = pi.u_exp[h][i] + noise[n][h][i];
        }
 
-      samples_cost[n] += ptr->R * 0.5 * abs(u_roll[h][0]*u_roll[h][0] + u_roll[h][1]*u_roll[h][1]);
+      samples_cost[n] += pi.R * 0.5 * abs(u_roll[h][0]*u_roll[h][0] + u_roll[h][1]*u_roll[h][1]);
+      //printf("control cost %f\n", samples_cost[n]);
+      float dist_target = (internal_state.pos[0]- pi. wps[0]) * (internal_state.pos[0]- pi. wps[0]) + (internal_state.pos[1]- pi. wps[1]) * (internal_state.pos[1]- pi. wps[1]);
+      samples_cost[n] += pi.TARGET_PENALTY* pi.dh * dist_target;
+      //printf("target cost %f\n", samples_cost[n]);
+      float cross_product_3 = abs(internal_state.vel[0] * pi.wps[1] - internal_state.vel[1] * pi.wps[0]);
+      samples_cost[n] += pi.HEADING_PENALTY * pi.dh * cross_product_3;
+      //printf("heading cost %f\n", samples_cost[n]);
+      for(int a=0; a < pi.units-1; a++){
+       float dist_unit = (internal_state.pos[0]-  internal_state.pos_rel[0+2*a]) * (internal_state.pos[0]- internal_state.pos_rel[0+2*a]) + (internal_state.pos[1]- internal_state.pos_rel[1+2*a]) * (internal_state.pos[1]- internal_state.pos_rel[1+2*a]);
 
-      float dist_target = (leader_state[0]- ptr-> wps[0]) * (leader_state[0]- ptr-> wps[0]) + (leader_state[1]- ptr-> wps[1]) * (leader_state[1]- ptr-> wps[1]);
-      samples_cost[n] += ptr->TARGET_PENALTY* ptr->dh * dist_target;
+       if(dist_unit > pi.COLLISION_DISTANCE ){}
+       else{ samples_cost[n] += exp(pi.COLLISION_PENALTY *(pi.COLLISION_DISTANCE - dist_unit));}
+              //printf("collision cost %f\n", samples_cost[n]);
+       }
 
-      float cross_product_3 = abs(leader_state[0] * ptr->wps[1] - leader_state[1] * ptr->wps[0]);
-      samples_cost[n] += ptr->HEADING_PENALTY * ptr->dh * cross_product_3;
+       // Propagate leader unit
+       internal_state.vel[0] += u_roll[h][0]*pi.dh;
+       internal_state.vel[1] += u_roll[h][1]*pi.dh;
+       internal_state.pos[0] += internal_state.vel[0]*pi.dh;
+       internal_state.pos[1] += internal_state.vel[1]*pi.dh;
 
-      for(int a=0; a < ptr->units-1; a++){
-        float dist_unit = (leader_state[0]-  followers_state[a][0]) * (leader_state[0]- followers_state[a][0]) + (leader_state[1]- followers_state[a][1]) * (leader_state[1]- followers_state[a][1]);
+       // Propagate follower units
+       for(int a=0; a < pi.units-1; a++) {
+         internal_state.pos_rel[0+2*a] += internal_state.vel_rel[0+2*a] * pi.dh;
+         internal_state.pos_rel[1+2*a] += internal_state.vel_rel[1+2*a] * pi.dh;
+         }
 
-        if(dist_unit > ptr->COLLISION_DISTANCE ){}
-        else{ samples_cost[n] += exp(ptr->COLLISION_PENALTY *(ptr->COLLISION_DISTANCE - dist_unit));}
-
-      }
-
-      // Propagate leader unit
-      leader_state[2] += u_roll[h][0]*ptr->dh;
-      leader_state[3] += u_roll[h][1]*ptr->dh;
-      leader_state[0] += leader_state[2]*ptr->dh;
-      leader_state[1] += leader_state[3]*ptr->dh;
-
-      // Propagate follower units
-      for(int a=0; a < ptr->units-1; a++) {
-        followers_state[a][0] += followers_state[a][2] * ptr->dh;
-        followers_state[a][1] += followers_state[a][3] * ptr->dh;
-      }
-
-    }
-
+     }
 
     if(samples_cost[n] < min_cost) {min_cost = samples_cost[n];}
-    //if(samples_cost[n] > max_cost) {max_cost = samples_cost[n];}
 
   }
-  //end_main = clock();
-  //main_time = ((double) (end_main - start_main)) / CLOCKS_PER_SEC;
-  //printf("------ Main TIME: %f, IF cond:%f, assign %f\, random %f\n----------",main_time, if_cond, assign, random);
+
   printf("Min cost is:%f\n",min_cost);
-  //printf("Max cost is:%f\n",max_cost);
+
 
   // Compute weight of all samples N
-  float w[ptr->N];
+  float w[pi.N];
   float w_sum = 0;
-  for (int n=0; n < ptr->N; ){
+  for (int n=0; n < pi.N; ){
     w[n] = exp(-(samples_cost[n] - min_cost)*inv_lambda);
     w_sum += w[n]; n++;//
     w[n] = exp(-(samples_cost[n] - min_cost)*inv_lambda);
@@ -189,172 +153,161 @@ void compute_optimal_controls(const struct PIController *ptr){
     w_sum += w[n]; n++;
   }
 
-  //printf("W sum:%f, counter %d\n", w_sum, counter);
-  float optimal_controls[ptr->dimU];
-  for (int n=0; n < ptr->N; ){
-      w[n] = w[n]/w_sum;
-      optimal_controls[0] += w[n] * noise[n][0][0];
-      optimal_controls[1] += w[n] * noise[n][0][1]; n++;
-      w[n] = w[n]/w_sum;
-      optimal_controls[0] += w[n] * noise[n][0][0];
-      optimal_controls[1] += w[n] * noise[n][0][1]; n++;
-      w[n] = w[n]/w_sum;
-      optimal_controls[0] += w[n] * noise[n][0][0];
-      optimal_controls[1] += w[n] * noise[n][0][1]; n++;
-      w[n] = w[n]/w_sum;
-      optimal_controls[0] += w[n] * noise[n][0][0];
-      optimal_controls[1] += w[n] * noise[n][0][1]; n++;
-      w[n] = w[n]/w_sum;
-      optimal_controls[0] += w[n] * noise[n][0][0];
-      optimal_controls[1] += w[n] * noise[n][0][1]; n++;
+  float internal_controls[pi.iH][pi.dimU];
+  for(int h = 0; h < pi.iH; h++){
+        internal_controls[h][0] = 0;
+        internal_controls[h][1] = 0;
+  }
+
+  for (int n=0; n < pi.N; n++ ){
+    w[n] = w[n]/w_sum;
+    for(int h = 0; h < pi.iH; h++){
+      internal_controls[h][0] += w[n] * noise[n][h][0];
+      internal_controls[h][1] += w[n] * noise[n][h][1];
     }
+   }
 
-  optimal_controls[0] /= ptr->dh;
-  optimal_controls[1] /= ptr->dh;
-  optimal_controls[0] +=  ptr->u_exp[1][0];
-  optimal_controls[1] +=  ptr->u_exp[1][1];
+  for(int h = 0; h < pi.iH; h++){
+    internal_controls[h][0] /= pi.dh;
+    internal_controls[h][1] /= pi.dh;
+  }
 
-  printf("Optimal control 0:%f, Optimal control 1:%f\n",optimal_controls[0],optimal_controls[1]);
-  //printf(&optimal_controls[0]);
-  //return &optimal_controls[0];
+  // Compute optimal controls
+  //printf("exploring control 0:%f,%f Internal control 1:%f %f\n",pi.u_exp[0][0],pi.u_exp[0][1],internal_controls[0][0],internal_controls[0][1]);
+  in.oc_x = pi.u_exp[0][0] + internal_controls[0][0];
+  in.oc_y = pi.u_exp[0][1] + internal_controls[0][1];
+
+  for(int h = 0; h < pi.iH; h++){
+    pi.u_exp[h][0] += internal_controls[h][0];
+    pi.u_exp[h][1] += internal_controls[h][1];
+  }
+
+  //printf("Optimal control 0:%f, Optimal control 1:%f\n",in.oc_x,in.oc_y);
 
 }
 
 
 /**
  * Function that computes the optimal controls for a follower unit
- */
+*/
+
 void compute_optimal_controls_followers(const struct PIController *ptr){
 
 
-  float noise[ptr->N][ptr->iH][ptr->dimU];
-  float u_roll[ptr->iH][ptr->dimU];
+  float noise[pi.N][pi.iH][pi.dimU];
+  float u_roll[pi.iH][pi.dimU];
 
   gsl_rng *r = gsl_rng_alloc(gsl_rng_mt19937);
-  float stdv = sqrt(ptr->var);
-  float samples_cost[ptr->N];
-  float leader_state[4];
-  float followers_state[2][4];
-  //float *followers_ptr = followers_state[0];
-  //float *followers_ptr_original = ptr->followers[0];
+  float stdv = sqrt(pi.var);
+  float samples_cost[pi.N];
+  struct PIstate internal_state;
   float min_cost = 10000;
-  float max_cost = 0;
-  //float_vect_zero(&samples_cost, ptr->N);
-
-  float inv_lambda = 1/ ptr->lambda;
+  float inv_lambda = 1/ pi.lambda;
 
   // Create and compute cost of all samples N
-  for (int n=ptr->N; n--; ){
+  for (int n=pi.N; n--; ){
 
     samples_cost[n] = 0;
 
-
     for (int i = 0; i< 4; i++){
-      leader_state[i] = ptr->state[i];
+      leader_state[i] = pi.state[i];
       for (int o = 0; o<2; o++){
-        followers_state[o][i] = ptr->followers[o][i];
+        followers_state[o][i] = pi.followers[o][i];
       }
     }
 
-    //float_vect_copy(&leader_state[0], &ptr->state[0], 4);
-    //float_mat_copy(&followers_ptr, &followers_ptr_original, 2, 4);
+    for (int h=0; h < pi.iH; h++) {
 
-    for (int h=0; h < ptr->iH; h++) {
-
-      for(int i=0; i < ptr->dimU; i++) {
+      for(int i=0; i < pi.dimU; i++) {
         noise[n][h][i] = gsl_ran_gaussian(r,1.) * stdv;
-        u_roll[h][i] = ptr->u_exp[h][i] + noise[n][h][i];
+        u_roll[h][i] = pi.u_exp[h][i] + noise[n][h][i];
        }
 
+      samples_cost[n] += pi.R * 0.5 * abs(u_roll[h][0]*u_roll[h][0] + u_roll[h][1]*u_roll[h][1]);
+
+      float dist_leader = (internal_state.pos[0]- internal_state.pos_rel[0]) * (internal_state.pos[0]- internal_state.pos_rel[0]) + (internal_state.pos[1]- internal_state.pos_rel[1]) * (internal_state.pos[1]- internal_state.pos_rel[1]);
+      if(dist_leader < pi.COHESION_DISTANCE ){}
+      else{ samples_cost[n] += exp(pi.COHESION_PENALTY *(dist_leader - pi.COHESION_DISTANCE));}
+
+      for(int a=0; a < pi.units-1; a++){
+        float dist_unit = (internal_state.pos[0]-  internal_state.pos_rel[0+2*a]) * (internal_state.pos[0]- internal_state.pos_rel[0+2*a]) + (internal_state.pos[1]- internal_state.pos_rel[0+2*a]) * (internal_state.pos[1]- internal_state.pos_rel[0+2*a]);
+        if(dist_unit > pi.COLLISION_DISTANCE ){}
+        else{ samples_cost[n] += exp(pi.COLLISION_PENALTY *(pi.COLLISION_DISTANCE - dist_unit));}
 
 
-      samples_cost[n] += ptr->R * 0.5 * abs(u_roll[h][0]*u_roll[h][0] + u_roll[h][1]*u_roll[h][1]);
-      //printf("Control cost is:%f\n",samples_cost[n]);
-
-      //printf("dist leader cost, %f, %f, %f\n",  samples_cost[n], u_roll[h][0],u_roll[h][1]);
-
-      float dist_leader = (leader_state[0]- followers_state[0][0]) * (leader_state[0]- followers_state[0][0]) + (leader_state[1]- followers_state[0][1]) * (leader_state[1]- followers_state[0][1]);
-      if(dist_leader < ptr->COHESION_DISTANCE ){}
-      else{ samples_cost[n] += exp(ptr->COHESION_PENALTY *(dist_leader - ptr->COHESION_DISTANCE));}
-      //printf("Samples cost cohesion %f, %f \n",  samples_cost[n], dist_leader);
-      for(int a=0; a < ptr->units-1; a++){
-        float dist_unit = (leader_state[0]-  followers_state[a][0]) * (leader_state[0]- followers_state[a][0]) + (leader_state[1]- followers_state[a][1]) * (leader_state[1]- followers_state[a][1]);
-        if(dist_unit > ptr->COLLISION_DISTANCE ){}
-        else{ samples_cost[n] += exp(ptr->COLLISION_PENALTY *(ptr->COLLISION_DISTANCE - dist_unit));}
-        //printf("Samples cost collision %f, %f \n",  samples_cost[n], dist_unit);
-
-        float cross_product_3 = abs(leader_state[0] * followers_state[a][1] - leader_state[1] * followers_state[a][0]);
-        if(cross_product_3 > ptr->PARALLEL_THR){}
-        else{samples_cost[n] += exp(ptr->PARALLEL_PENALTY *(ptr->PARALLEL_THR - cross_product_3));}
-        //printf("Samples cost parallel %f, %f \n",  samples_cost[n], cross_product_3);
+        float cross_product_3 = abs(internal_state.pos[0] * internal_state.pos_rel[1+2*a] - internal_state.pos[1] * internal_state.pos_rel[0+2*a]);
+        if(cross_product_3 > pi.PARALLEL_THR){}
+        else{samples_cost[n] += exp(pi.PARALLEL_PENALTY *(pi.PARALLEL_THR - cross_product_3));}
 
       }
 
-      // Propagate leader unit
-      leader_state[2] += u_roll[h][0]*ptr->dh;
-      leader_state[3] += u_roll[h][1]*ptr->dh;
-      leader_state[0] += leader_state[2]*ptr->dh;
-      leader_state[1] += leader_state[3]*ptr->dh;
+      // Propagate unit
+      internal_state.vel[0] += u_roll[h][0]*pi.dh;
+      internal_state.vel[1] += u_roll[h][1]*pi.dh;
+      internal_state.pos[0] += internal_state.vel[0]*pi.dh;
+      internal_state.pos[1] += internal_state.vel[1]*pi.dh;
 
-      // Propagate follower units
-      for(int a=0; a < ptr->units-1; a++) {
-        followers_state[a][0] += followers_state[a][2] * ptr->dh;
-        followers_state[a][1] += followers_state[a][3] * ptr->dh;
+      // Propagate neighboring units
+      for(int a=0; a < pi.units-1; a++) {
+        internal_state.pos_rel[0+2*a] += internal_state.vel_rel[0+2*a] * pi.dh;
+        internal_state.pos_rel[1+2*a] += internal_state.vel_rel[1+2*a] * pi.dh;
       }
 
     }
 
+
     if(samples_cost[n] < min_cost) {min_cost = samples_cost[n];}
-    //if(samples_cost[n] > max_cost) {max_cost = samples_cost[n];}
 
   }
   printf("Min cost is:%f\n",min_cost);
-  //printf("Max cost is:%f\n",max_cost);
 
   // Compute weight of all samples N
-  float w[ptr->N];
-  float w_sum = 0;
-  for (int n=0; n < ptr->N;){
-    w[n] = exp(-(samples_cost[n] - min_cost)*inv_lambda);
-    w_sum += w[n]; n++;
-    w[n] = exp(-(samples_cost[n] - min_cost)*inv_lambda);
-    w_sum += w[n]; n++;
-    w[n] = exp(-(samples_cost[n] - min_cost)*inv_lambda);
-    w_sum += w[n]; n++;
-    w[n] = exp(-(samples_cost[n] - min_cost)*inv_lambda);
-    w_sum += w[n]; n++;
-    w[n] = exp(-(samples_cost[n] - min_cost)*inv_lambda);
-    w_sum += w[n]; n++;
-  }
-
-  //printf("W sum:%f, counter %d\n", w_sum, counter);
-  float optimal_controls[ptr->dimU];
-  for (int n=0; n < ptr->N;){
-    w[n] = w[n]/w_sum;
-    optimal_controls[0] += w[n] * noise[n][0][0];
-    optimal_controls[1] += w[n] * noise[n][0][1]; n++;
-    w[n] = w[n]/w_sum;
-    optimal_controls[0] += w[n] * noise[n][0][0];
-    optimal_controls[1] += w[n] * noise[n][0][1]; n++;
-    w[n] = w[n]/w_sum;
-    optimal_controls[0] += w[n] * noise[n][0][0];
-    optimal_controls[1] += w[n] * noise[n][0][1]; n++;
-    w[n] = w[n]/w_sum;
-    optimal_controls[0] += w[n] * noise[n][0][0];
-    optimal_controls[1] += w[n] * noise[n][0][1]; n++;
-    w[n] = w[n]/w_sum;
-    optimal_controls[0] += w[n] * noise[n][0][0];
-    optimal_controls[1] += w[n] * noise[n][0][1]; n++;
+    float w[pi.N];
+    float w_sum = 0;
+    for (int n=0; n < pi.N; ){
+      w[n] = exp(-(samples_cost[n] - min_cost)*inv_lambda);
+      w_sum += w[n]; n++;//
+      w[n] = exp(-(samples_cost[n] - min_cost)*inv_lambda);
+      w_sum += w[n]; n++;
+      w[n] = exp(-(samples_cost[n] - min_cost)*inv_lambda);
+      w_sum += w[n]; n++;
+      w[n] = exp(-(samples_cost[n] - min_cost)*inv_lambda);
+      w_sum += w[n]; n++;
+      w[n] = exp(-(samples_cost[n] - min_cost)*inv_lambda);
+      w_sum += w[n]; n++;
     }
 
-  optimal_controls[0] /= ptr->dh;
-  optimal_controls[1] /= ptr->dh;
-  optimal_controls[0] +=  ptr->u_exp[1][0];
-  optimal_controls[1] +=  ptr->u_exp[1][1];
+    float internal_controls[pi.iH][pi.dimU];
+    for(int h = 0; h < pi.iH; h++){
+          internal_controls[h][0] = 0;
+          internal_controls[h][1] = 0;
+    }
 
-  printf("Optimal control 0:%f, Optimal control 1:%f\n",optimal_controls[0],optimal_controls[1]);
+    for (int n=0; n < pi.N; n++ ){
+      w[n] = w[n]/w_sum;
+      for(int h = 0; h < pi.iH; h++){
+        internal_controls[h][0] += w[n] * noise[n][h][0];
+        internal_controls[h][1] += w[n] * noise[n][h][1];
+      }
+     }
+
+    for(int h = 0; h < pi.iH; h++){
+      internal_controls[h][0] /= pi.dh;
+      internal_controls[h][1] /= pi.dh;
+    }
+
+    // Compute optimal controls
+    //printf("exploring control 0:%f,%f Internal control 1:%f %f\n",pi.u_exp[0][0],pi.u_exp[0][1],internal_controls[0][0],internal_controls[0][1]);
+    in.oc_x = pi.u_exp[0][0] + internal_controls[0][0];
+    in.oc_y = pi.u_exp[0][1] + internal_controls[0][1];
+
+    for(int h = 0; h < pi.iH; h++){
+      pi.u_exp[h][0] += internal_controls[h][0];
+      pi.u_exp[h][1] += internal_controls[h][1];
+    }
 
 }
+
 
 
 
@@ -365,9 +318,9 @@ void compute_optimal_controls_followers(const struct PIController *ptr){
 /*
 int * compute_weight(int *cost, struct PIController *ptr){
 
-  float w[ptr->N];
+  float w[pi.N];
   float cost[]
-  for(int n=0; n < ptr->N; n++ ){
+  for(int n=0; n < pi.N; n++ ){
     w[n] = exp(-(cost + n ))
   }
 
@@ -384,17 +337,17 @@ int * compute_weight(int *cost, struct PIController *ptr){
 
 void PIController_shiftControls(struct PIController *ptr)
 {
-  for (int s = 1; s < ptr->iH; s++){
-    for (int u = 1; u< ptr->units*ptr->dimU; u++ ){
-      ptr->u_exp[s-1][u] = ptr->u_exp[s][u];
+  for (int s = 1; s < pi.iH; s++){
+    for (int u = 1; u< pi.units*pi.dimU; u++ ){
+      pi.u_exp[s-1][u] = pi.u_exp[s][u];
     }
   }
-  ptr->u_exp[ptr->iH-1][0] = 0;
-  ptr->u_exp[ptr->iH-1][1] = 0;
-  ptr->u_exp[ptr->iH-1][2] = 0;
-  ptr->u_exp[ptr->iH-1][3] = 0;
-  ptr->u_exp[ptr->iH-1][4] = 0;
-  ptr->u_exp[ptr->iH-1][5] = 0;
+  pi.u_exp[pi.iH-1][0] = 0;
+  pi.u_exp[pi.iH-1][1] = 0;
+  pi.u_exp[pi.iH-1][2] = 0;
+  pi.u_exp[pi.iH-1][3] = 0;
+  pi.u_exp[pi.iH-1][4] = 0;
+  pi.u_exp[pi.iH-1][5] = 0;
 }
 
 */
