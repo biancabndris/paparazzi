@@ -68,7 +68,7 @@ void pi_calc(void){
   cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
 
   printf("------ ELAPSED TIME: %f\n----------",cpu_time_used);
-  printf("Controls 0: %f , Controls 1: %f\n", in.oc_x, in.oc_y);
+  printf("Controls 0: %f , Controls 1: %f\n", temp_result.pi_vel.x, temp_result.pi_vel.y);
 
   // Copy the result if finished
   pthread_mutex_lock(&pi_mutex);
@@ -84,6 +84,9 @@ void pi_run(void){
   // Update the stabilization loops on the current calculation
   if (pi_got_result){
     uint32_t now_ts = get_sys_time_usec();
+    AbiSendMsgPATH_INTEGRAL(PATH_INTEGRAL_ID, now_ts,
+                            pi_result.pi_vel.x,
+                            pi_result.pi_vel.y);
     pi_got_result = false;
   }
   pthread_mutex_unlock(&pi_mutex);

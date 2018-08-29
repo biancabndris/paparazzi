@@ -385,4 +385,11 @@
 #define RELATIVE_LOCALIZATION_ID 1
 #endif
 
+/*
+ * PATH INTEGRAL communication (message 25)
+*/
+#ifndef PATH_INTEGRAL_ID
+#define PATH_INTEGRAL_ID 1
+#endif
+
 #endif /* ABI_SENDER_IDS_H */
