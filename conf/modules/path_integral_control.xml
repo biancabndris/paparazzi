@@ -1,0 +1,18 @@
+<!DOCTYPE module SYSTEM "module.dtd">
+
+<module name="path_integral_control">
+  <doc>
+    <description>Stochastic Optimal controller. Outputs x and y optimal velocities.</description>
+  </doc>
+  <header>
+    <file name="path_integral_control.h"/>
+  </header>
+  <init fun="pi_init()"/>
+  <periodic fun="pi_calc()" freq="10" autorun="TRUE"/>
+  <event fun="pi_run()"/>
+  <makefile target="ap">
+    <file name="path_integral_control.c"/>
+    <file name="optimal_control_calculator.c"/>
+    <flag name="LDFLAGS" value="lgsl"/>
+  </makefile>
+</module>
