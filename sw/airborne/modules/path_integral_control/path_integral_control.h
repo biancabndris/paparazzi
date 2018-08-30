@@ -35,5 +35,8 @@ extern void pi_init(void);
 extern void pi_calc(void);
 extern void pi_run(void);
 
+extern void start_thread(void);
+extern void stop_thread(void);
+
 #endif
 
