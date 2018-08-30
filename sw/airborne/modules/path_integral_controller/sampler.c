@@ -23,10 +23,6 @@
 
 void PIController_init()
 {
-
-    pi.T                  = 10;
-    pi.dt                 = 0.04;
-    pi.iT                 = 500;
     pi.H                  = 1;
     pi.dh                 = 0.2;
     pi.iH                 = 5;
@@ -63,11 +59,10 @@ void PIController_init()
 }
 
 
-
 /**
  * Function that computes the optimal controls for the leader unit
  */
-void compute_optimal_controls( ){
+void compute_optimal_controls(){
 
   float noise[pi.N][pi.iH][pi.dimU];
   float u_roll[pi.iH][pi.dimU];
@@ -191,7 +186,7 @@ void compute_optimal_controls( ){
  * Function that computes the optimal controls for a follower unit
 */
 
-void compute_optimal_controls_followers(const struct PIController *ptr){
+void compute_optimal_controls_followers(){
 
 
   float noise[pi.N][pi.iH][pi.dimU];
@@ -209,10 +204,12 @@ void compute_optimal_controls_followers(const struct PIController *ptr){
 
     samples_cost[n] = 0;
 
-    for (int i = 0; i< 4; i++){
-      leader_state[i] = pi.state[i];
+    for (int i = 0; i< 2; i++){
+      internal_state.pos[i] = st.pos[i];
+      internal_state.vel[i] = st.vel[i];
       for (int o = 0; o<2; o++){
-        followers_state[o][i] = pi.followers[o][i];
+        internal_state.pos_rel[o+2*i] = st.pos_rel[o+2*i];
+        internal_state.vel_rel[o+2*i] = st.vel_rel[o+2*i];
       }
     }
 

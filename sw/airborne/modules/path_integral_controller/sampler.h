@@ -64,7 +64,7 @@ struct PIstate st;
 
 extern void PIController_init(void);
 extern void compute_optimal_controls(void);
-extern void compute_optimal_controls_followers( void);
+extern void compute_optimal_controls_followers(void);
 extern void shiftControls(void);
 
 static inline void setState(void){

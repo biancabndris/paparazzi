@@ -24,12 +24,29 @@
 #include <gsl/gsl_randist.h>
 #include <stdlib.h>
 
+#if PERIODIC_TELEMETRY
+#include "subsystems/datalink/telemetry.h"
+/**
+ * Send path integral control telemetry information
+ * @param[in] *trans The transport structure to send the information over
+ * @param[in] *dev The link to send the data over
+ */
+static void pi_telem_send(struct transport_tx *trans, struct link_device *dev)
+{
 
+  pprz_msg_send_PATH_INTEGRAL(trans, dev, AC_ID,
+                               &in.oc_x, &in.oc_y); // TODO: no noise measurement here...
+}
+#endif
 
 void pi_init() {
 
   PIController_init();//&pi
   initInput(); //&in
+
+#if PERIODIC_TELEMETRY
+  register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_PATH_INTEGRAL, pi_telem_send);
+#endif
 
 }
 
