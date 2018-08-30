@@ -165,6 +165,12 @@
       <field name="vy" type="float" unit="m/s"/>
       <field name="vz" type="float" unit="m/s"/>
     </message>
+    
+    <message name="PATH_INTEGRAL" id="25">
+      <field name="id" type="int32_t"/>
+      <field name="opt_vel_x" type="float" unit="m/s"/>
+      <field name="opt_vel_y" type="float" unit="m/s"/>
+    </message>
 
   </msg_class>
 

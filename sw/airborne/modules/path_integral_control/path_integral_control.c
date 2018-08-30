@@ -37,6 +37,21 @@ struct pi_state_t st;
 static bool pi_got_result;
 static pthread_mutex_t pi_mutex;
 
+#if PERIODIC_TELEMETRY
+#include "subsystems/datalink/telemetry.h"
+/**
+ * Send path integral control telemetry information
+ * @param[in] *trans The transport structure to send the information over
+ * @param[in] *dev The link to send the data over
+ */
+static void pi_telem_send(struct transport_tx *trans, struct link_device *dev)
+{
+  pthread_mutex_lock(&pi_mutex);
+  pprz_msg_send_PATH_INTEGRAL(trans, dev, AC_ID,
+                               &pi_result.pi_vel.x, &pi_result.pi_vel.y); // TODO: no noise measurement here...
+  pthread_mutex_unlock(&pi_mutex);
+}
+#endif
 
 
 /**
@@ -47,6 +62,10 @@ void pi_init(void)
 
   pi_got_result = false;
   pi_calc_init(&pi);
+
+#if PERIODIC_TELEMETRY
+  register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_PATH_INTEGRAL, pi_telem_send);
+#endif
 
 }
 
