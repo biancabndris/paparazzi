@@ -50,7 +50,6 @@ struct path_integral_t{
    float PARALLEL_THR;
 
    uint8_t units;
-   uint8_t dimX;
    uint8_t dimU;
 
 

@@ -30,8 +30,8 @@ static inline void obstacle_detection_cb(uint8_t sender_id __attribute__((unused
 	  <variable var="desired_heading" init="0.0f" type="float" min="0." max="10." step="0.1"/>
 	  <variable var="turn_angle" init="90.0f" type="float" min="-180" max="180" step="1"/>
 	  <variable var="turn_rate" init="0.5f" type="float" min="0." max="10." step="0.1"/>
-    <variable var="climb_descent_vel" init="0.3f" type="float" min="0." max="1" step="0.1"/>
-    <variable var="forward_vel" init="0.3f" type="float" min="0." max="2" step="0.1"/>
+   	  <variable var="climb_descent_vel" init="0.3f" type="float" min="0." max="1" step="0.1"/>
+    	  <variable var="forward_vel" init="0.3f" type="float" min="0." max="2" step="0.1"/>
 	  <variable var="nominal_alt" init="1.0f" type="float" min="0." max="10." step="0.1"/>
 	</variables>
 

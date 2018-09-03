@@ -36,7 +36,9 @@ struct path_integral_t pi;
 struct pi_result_t pi_result;
 struct pi_state_t st;
 static bool pi_got_result;
+static pthread_t path_integral_thread;
 static pthread_mutex_t pi_mutex;
+
 
 #if PERIODIC_TELEMETRY
 #include "subsystems/datalink/telemetry.h"
@@ -63,8 +65,8 @@ static void *pi_calc_thread(void *arg);
 void pi_init(void)
 {
 
-  pi_got_result = false;
   pi_calc_init(&pi);
+  pi_got_result = false;
 
 #if PERIODIC_TELEMETRY
   register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_PATH_INTEGRAL, pi_telem_send);
@@ -77,14 +79,19 @@ void pi_init(void)
  */
 void start_thread(void)
 {
-  //if (!camera->thread.is_running)
-  pthread_t tid;
-  if (pthread_create(&tid, NULL, pi_calc_thread, NULL) != 0) {
-        printf("[viewPI] Could not create thread for path_integral: Reason: %d.\n", errno);
+
+  if (path_integral_thread != 0) {
+    printf("[path_integral] Path integral thread already started!\n");
+    return;
+  }
+
+  if (pthread_create(&path_integral_thread, NULL, pi_calc_thread, NULL) != 0) {
+        printf("[path_integral] Could not create thread for path_integral: Reason: %d.\n", errno);
         return;
-      }
+  }
+
   #ifndef __APPLE__
-      pthread_setname_np(tid, "path_integral");
+      pthread_setname_np(path_integral_thread, "path_integral");
   #endif
 }
 
@@ -98,11 +105,9 @@ void stop_thread(void)
     // Stop the streaming thread
     //device->thread.is_running = false;
 
-  // Stop the thread
-  //if (pthread_cancel(tid) < 0) {
-  //  printf("Could not cancel thread for %s\n", tid);
-  //  return false;
-  //}
+  if (pthread_cancel(path_integral_thread) != 0) {
+    printf("[path_integral] Thread cancel did not work\n");
+  }
 
   // Wait for the thread to be finished
   //pthread_join(tid, NULL);
@@ -110,30 +115,31 @@ void stop_thread(void)
 
 }
 
-static void *pi_calc_thread(void *arg)
+static void *pi_calc_thread(void *arg __attribute__((unused)))
 {
-  clock_t start, end;
-  float cpu_time_used;
-  struct pi_result_t temp_result;
+  while(true){
+    clock_t start, end;
+    float cpu_time_used;
+    struct pi_result_t temp_result;
 
-  set_state(&st);
+    set_state(&st);
 
-  start = clock();
-  bool success = pi_calc_timestep(&pi, &st, &temp_result);
-  end = clock();
+    start = clock();
+    bool success = pi_calc_timestep(&pi, &st, &temp_result);
+    end = clock();
 
-  cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+    cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
 
-  printf("------ ELAPSED TIME: %f\n----------",cpu_time_used);
-  printf("Controls 0: %f , Controls 1: %f\n", temp_result.pi_vel.x, temp_result.pi_vel.y);
+    printf("------ ELAPSED TIME: %f\n----------",cpu_time_used);
+    printf("Controls 0: %f , Controls 1: %f\n", temp_result.pi_vel.x, temp_result.pi_vel.y);
 
-  // Copy the result if finished
-  pthread_mutex_lock(&pi_mutex);
-  pi_result = temp_result;
-  pi_got_result = success;
+    // Copy the result if finished
+    pthread_mutex_lock(&pi_mutex);
+    pi_result = temp_result;
+    pi_got_result = success;
 
-  pthread_mutex_unlock(&pi_mutex);
-
+    pthread_mutex_unlock(&pi_mutex);
+  }
   return 0;
 }
 
@@ -143,7 +149,19 @@ static void *pi_calc_thread(void *arg)
  */
 void pi_calc(void){
 
-  clock_t start, end;
+  pthread_mutex_lock(&pi_mutex);
+  // Update the stabilization loops on the current calculation
+  if (pi_got_result){
+    uint32_t now_ts = get_sys_time_usec();
+    AbiSendMsgPATH_INTEGRAL(PATH_INTEGRAL_ID, now_ts,
+                            pi_result.pi_vel.x,
+                            pi_result.pi_vel.y);
+    pi_got_result = false;
+    printf("!!!Event detected: Got result!!!");
+  }
+  pthread_mutex_unlock(&pi_mutex);
+
+/*  clock_t start, end;
   float cpu_time_used;
   struct pi_result_t temp_result;
 
@@ -163,7 +181,7 @@ void pi_calc(void){
   pi_result = temp_result;
   pi_got_result = success;
 
-  pthread_mutex_unlock(&pi_mutex);
+  pthread_mutex_unlock(&pi_mutex);*/
 
 }
 

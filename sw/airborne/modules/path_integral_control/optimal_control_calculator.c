@@ -76,9 +76,6 @@
 #ifndef PI_UNITS
 #define PI_UNITS 3
 #endif
-#ifndef PI_DIM_STATES
-#define PI_DIM_STATES 2
-#endif
 #ifndef PI_DIM_U
 #define PI_DIM_U 2
 #endif
@@ -113,7 +110,6 @@ void pi_calc_init(struct path_integral_t *pi){
      pi->PARALLEL_THR       = PI_PARALLEL_THR;
 
      pi->units              = PI_UNITS;
-     pi->dimX               = PI_DIM_STATES;
      pi->dimU               = PI_DIM_U;
 
      pi->wps[0]             = PI_TARGET_WP_X;

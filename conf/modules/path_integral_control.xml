@@ -3,9 +3,33 @@
 <module name="path_integral_control">
   <doc>
     <description>Stochastic Optimal controller. Outputs x and y optimal velocities.</description>
+    <!-- Path Integral calculation parameters -->
+    <section name="PATH_INTEGRAL" prefix="PATH_INTEGRAL">
+
+      <!-- General path integral algorithm parameters -->
+      <define name="LEADER" value="0" description="Boolean to determine the MAV role"/>
+      <define name="HORIZON" value="1" description="Planning horizon used to compute the optimal controls"/>
+      <define name="DH" value="0.2" description="Horizon step"/>
+      <define name="NU" value="1" description="Noise variation"/>
+      <define name="R" value="1" description="Control cost matrix"/>
+      <define name="SAMPLES" value="1000" description="Number of samples used to compute the optimal controls"/>
+      <define name="COLLISION_DISTANCE" value="2.25" description="Minimum allowed squared distance in meters before a collision penalty is applied"/>
+      <define name="COHESION_DISTANCE" value="6.25" description="Maximum allowed squared distance in meters before a cohesion penalty is applied"/>
+      <define name="COLLISION_PENALTY" value="10" description="Penalty applied when two MAVs are closer than the established collision distance threshold"/>
+      <define name="COHESION_PENALTY" value="5" description="Penalty applied when the MAV is further than the established cohesion distance from its leader"/>
+      <define name="TARGET_PENALTY" value="50" description="Penalty applied to the leader MAV proportionally with the distance error to the target"/>
+      <define name="HEADING_PENALTY" value="2" description="Penalty applied to the leader MAV proportionally with the heading error from the target"/>
+      <define name="PARALLEL_PENALTY" value="10" description="Penalty applied to followers MAVs to avoid parallel flight configurations"/>
+      <define name="MAX_SPEED" value="1.5" description="Maximum allowed speed taken into account in this algorithm"/>    
+      <define name="PARALLEL_THR" value="0.3" description="Thredhold of the cross product of velocity vectors of two MAVs below which parallel flight is considered"/>
+      <define name="UNITS" value="3" description="Number of MAVs in the formation"/>
+      <define name="DIM_U" value="2" description="Dimension of the optimal control"/>
+      <define name="TARGET_WP_X" value="1.25" description="X coordinate of the target waypoint"/>
+      <define name="TARGET_WP_Y" value="1.25" description="Y coordinate of the target waypoint"/>
+      		
+    </section>
   </doc>
 
- <autoload name="video_thread"/>
 
   <header>
     <file name="path_integral_control.h"/>
