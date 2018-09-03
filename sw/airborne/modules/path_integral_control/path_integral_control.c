@@ -51,7 +51,7 @@ static void pi_telem_send(struct transport_tx *trans, struct link_device *dev)
 {
   pthread_mutex_lock(&pi_mutex);
   pprz_msg_send_PATH_INTEGRAL(trans, dev, AC_ID,
-                               &pi_result.pi_vel.x, &pi_result.pi_vel.y); // TODO: no noise measurement here...
+                               &pi_result.pi_vel.x, &pi_result.pi_vel.y);
   pthread_mutex_unlock(&pi_mutex);
 }
 #endif
@@ -67,6 +67,9 @@ void pi_init(void)
 
   pi_calc_init(&pi);
   pi_got_result = false;
+
+  // Update state information
+  set_state(&st);
 
 #if PERIODIC_TELEMETRY
   register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_PATH_INTEGRAL, pi_telem_send);
@@ -101,41 +104,42 @@ void start_thread(void)
  */
 void stop_thread(void)
 {
-  //if (device->thread.is_running) {
-    // Stop the streaming thread
-    //device->thread.is_running = false;
 
   if (pthread_cancel(path_integral_thread) != 0) {
     printf("[path_integral] Thread cancel did not work\n");
   }
-
-  // Wait for the thread to be finished
-  //pthread_join(tid, NULL);
-  //tid = (pthread_t) NULL;
 
 }
 
 static void *pi_calc_thread(void *arg __attribute__((unused)))
 {
   while(true){
-    clock_t start, end;
-    float cpu_time_used;
+
+    // Copy the state
+    pthread_mutex_lock(&pi_mutex);
+    struct pi_state_t temp_state;
+    memcpy(&temp_state, &st, sizeof(struct pi_state_t));
+    pthread_mutex_unlock(&pi_mutex);
+
+    // Compute the optimal controls
     struct pi_result_t temp_result;
 
-    set_state(&st);
+    struct timespec start, finish;
+    float elapsed;
+    clock_gettime(CLOCK_MONOTONIC, &start);
 
-    start = clock();
-    bool success = pi_calc_timestep(&pi, &st, &temp_result);
-    end = clock();
+    bool success = pi_calc_timestep(&pi, &temp_state, &temp_result);
 
-    cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+    clock_gettime(CLOCK_MONOTONIC, &finish);
+    elapsed = (finish.tv_sec - start.tv_sec);
+    elapsed += (finish.tv_nsec - start.tv_nsec) / 1000000000.0;
 
-    printf("------ ELAPSED TIME: %f\n----------",cpu_time_used);
+    printf("------ ELAPSED TIME: %f\n----------",elapsed);
     printf("Controls 0: %f , Controls 1: %f\n", temp_result.pi_vel.x, temp_result.pi_vel.y);
 
     // Copy the result if finished
     pthread_mutex_lock(&pi_mutex);
-    pi_result = temp_result;
+    memcpy(&pi_result, &temp_result, sizeof(struct pi_result_t));
     pi_got_result = success;
 
     pthread_mutex_unlock(&pi_mutex);
@@ -147,46 +151,13 @@ static void *pi_calc_thread(void *arg __attribute__((unused)))
 /**
  * Calculate the optimal controls
  */
-void pi_calc(void){
+void pi_run(void){
 
   pthread_mutex_lock(&pi_mutex);
-  // Update the stabilization loops on the current calculation
-  if (pi_got_result){
-    uint32_t now_ts = get_sys_time_usec();
-    AbiSendMsgPATH_INTEGRAL(PATH_INTEGRAL_ID, now_ts,
-                            pi_result.pi_vel.x,
-                            pi_result.pi_vel.y);
-    pi_got_result = false;
-    printf("!!!Event detected: Got result!!!");
-  }
-  pthread_mutex_unlock(&pi_mutex);
 
-/*  clock_t start, end;
-  float cpu_time_used;
-  struct pi_result_t temp_result;
-
+  // Update state information
   set_state(&st);
 
-  start = clock();
-  bool success = pi_calc_timestep(&pi, &st, &temp_result);
-  end = clock();
-
-  cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
-
-  printf("------ ELAPSED TIME: %f\n----------",cpu_time_used);
-  printf("Controls 0: %f , Controls 1: %f\n", temp_result.pi_vel.x, temp_result.pi_vel.y);
-
-  // Copy the result if finished
-  pthread_mutex_lock(&pi_mutex);
-  pi_result = temp_result;
-  pi_got_result = success;
-
-  pthread_mutex_unlock(&pi_mutex);*/
-
-}
-
-void pi_run(void){
-  pthread_mutex_lock(&pi_mutex);
   // Update the stabilization loops on the current calculation
   if (pi_got_result){
     uint32_t now_ts = get_sys_time_usec();
@@ -197,6 +168,8 @@ void pi_run(void){
     printf("!!!Event detected: Got result!!!");
   }
   pthread_mutex_unlock(&pi_mutex);
+
 }
+
 
 

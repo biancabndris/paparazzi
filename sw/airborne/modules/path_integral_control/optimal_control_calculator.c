@@ -259,13 +259,15 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
 
   // Compute optimal controls
   //printf("exploring control 0:%f,%f Internal control 1:%f %f\n",pi->u_exp[0][0],pi->u_exp[0][1],internal_controls[0][0],internal_controls[0][1]);
-  result->pi_vel.x = pi->u_exp[0][0] + internal_controls[0][0];
-  result->pi_vel.y = pi->u_exp[0][1] + internal_controls[0][1];
+  result->pi_vel.x = st->vel[0] + (pi->u_exp[0][0] + internal_controls[0][0])*0.09;
+  result->pi_vel.y = st->vel[1] + (pi->u_exp[0][1] + internal_controls[0][1])*0.09;
 
+  // Save controls for importance sampling
   for(int h = 0; h < pi->iH; h++){
     pi->u_exp[h][0] += internal_controls[h][0];
     pi->u_exp[h][1] += internal_controls[h][1];
   }
+
   if(result->pi_vel.x > 0 && result->pi_vel.y > 0){
     success = true;
   }

@@ -57,23 +57,17 @@ struct path_integral_t{
    float u_exp[5][2];
 };
 
-struct pi_state_t{
-   float pos[2];
-   float vel[2];
-   float pos_rel[4];
-   float vel_rel[4];
-};
-
 
 extern void pi_calc_init(struct path_integral_t *pi);
 extern bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct pi_result_t *temp_result);
 
 
 static inline void set_state(struct pi_state_t *st){
-  st->pos[0]     = stateGetPositionNed_f()->x;
-  st->pos[1]     = stateGetPositionNed_f()->y;
-  st->vel[0]     = stateGetSpeedNed_f()->x;
-  st->vel[1]     = stateGetSpeedNed_f()->z;
+
+  st->pos[0]     = stateGetPositionEnu_f()->x;
+  st->pos[1]     = stateGetPositionEnu_f()->y;
+  st->vel[0]     = stateGetSpeedEnu_f()->x;
+  st->vel[1]     = stateGetSpeedEnu_f()->y;
 
   st->pos_rel[0] = 4;
   st->pos_rel[1] = 4;

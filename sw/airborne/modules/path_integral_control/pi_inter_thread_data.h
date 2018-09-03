@@ -34,5 +34,11 @@ struct pi_result_t{
   struct FloatVect2 pi_vel;
 };
 
+struct pi_state_t{
+   float pos[2];
+   float vel[2];
+   float pos_rel[4];
+   float vel_rel[4];
+};
 
 #endif
