@@ -139,9 +139,10 @@ static void *pi_calc_thread(void *arg __attribute__((unused)))
 
     // Copy the result if finished
     pthread_mutex_lock(&pi_mutex);
-    memcpy(&pi_result, &temp_result, sizeof(struct pi_result_t));
+    if(success){
+      memcpy(&pi_result, &temp_result, sizeof(struct pi_result_t));
+    }
     pi_got_result = success;
-
     pthread_mutex_unlock(&pi_mutex);
   }
   return 0;

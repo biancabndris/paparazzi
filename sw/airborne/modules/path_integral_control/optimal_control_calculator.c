@@ -26,7 +26,7 @@
 #include "modules/path_integral_control/optimal_control_calculator.h"
 #include <gsl/gsl_rng.h>
 #include <gsl/gsl_randist.h>
-
+#include <math.h>
 
 #ifndef PI_LEADER
 #define PI_LEADER 1
@@ -268,7 +268,7 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
     pi->u_exp[h][1] += internal_controls[h][1];
   }
 
-  if(result->pi_vel.x > 0 && result->pi_vel.y > 0){
+  if(result->pi_vel.x > 0 && result->pi_vel.y > 0 && !isnan(result->pi_vel.x) && !isnan(result->pi_vel.y)){
     success = true;
   }
 
