@@ -44,7 +44,7 @@
 #define PI_R 1
 #endif
 #ifndef PI_SAMPLES
-#define PI_SAMPLES 1000
+#define PI_SAMPLES 500
 #endif
 #ifndef PI_COLLISION_DISTANCE
 #define PI_COLLISION_DISTANCE 2.25
@@ -68,7 +68,7 @@
 #define PI_PARALLEL_PENALTY 10
 #endif
 #ifndef PI_MAX_SPEED
-#define PI_MAX_SPEED 1.5
+#define PI_MAX_SPEED 0.5
 #endif
 #ifndef PI_PARALLEL_THR
 #define PI_PARALLEL_THR 0.3
@@ -79,11 +79,11 @@
 #ifndef PI_DIM_U
 #define PI_DIM_U 2
 #endif
-#ifndef PI_TARGET_WP_X
-#define PI_TARGET_WP_X 1.25
+#ifndef PI_TARGET_WP_N
+#define PI_TARGET_WP_N 1
 #endif
-#ifndef PI_TARGET_WP_Y
-#define PI_TARGET_WP_Y 1.25
+#ifndef PI_TARGET_WP_E
+#define PI_TARGET_WP_E 2
 #endif
 
 
@@ -112,8 +112,8 @@ void pi_calc_init(struct path_integral_t *pi){
      pi->units              = PI_UNITS;
      pi->dimU               = PI_DIM_U;
 
-     pi->wps[0]             = PI_TARGET_WP_X;
-     pi->wps[1]             = PI_TARGET_WP_Y;
+     pi->wps[0]             = PI_TARGET_WP_N;
+     pi->wps[1]             = PI_TARGET_WP_E;
 
 
      for(int h=0; h<pi->iH; h++) {
@@ -138,10 +138,10 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
   float noise[pi->N][pi->iH][pi->dimU];
   float u_roll[pi->iH][pi->dimU];
   gsl_rng *r = gsl_rng_alloc(gsl_rng_mt19937);
-  float stdv = sqrt(pi->var);
+  float stdv = sqrt(pi->var*pi->dh);
   float samples_cost[pi->N];
   struct pi_state_t internal_state;
-  float min_cost = 10000;
+  float min_cost = 20000;
   float inv_lambda = 1/pi->lambda;
 
   // Create and compute cost of all samples N
@@ -186,12 +186,13 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
       else{
         float dist_leader = (internal_state.pos[0]- internal_state.pos_rel[0]) * (internal_state.pos[0]- internal_state.pos_rel[0]) + (internal_state.pos[1]- internal_state.pos_rel[1]) * (internal_state.pos[1]- internal_state.pos_rel[1]);
         if(dist_leader < pi->COHESION_DISTANCE ){}
-        else{ samples_cost[n] += exp(pi->COHESION_PENALTY *(dist_leader - pi->COHESION_DISTANCE));}
+        else{samples_cost[n] += exp(pi->COHESION_PENALTY *(dist_leader - pi->COHESION_DISTANCE));}
 
         for(int a=0; a < pi->units-1; a++){
           float dist_unit = (internal_state.pos[0]-  internal_state.pos_rel[0+2*a]) * (internal_state.pos[0]- internal_state.pos_rel[0+2*a]) + (internal_state.pos[1]- internal_state.pos_rel[0+2*a]) * (internal_state.pos[1]- internal_state.pos_rel[0+2*a]);
           if(dist_unit > pi->COLLISION_DISTANCE ){}
           else{ samples_cost[n] += exp(pi->COLLISION_PENALTY *(pi->COLLISION_DISTANCE - dist_unit));}
+
 
 
           float cross_product_3 = abs(internal_state.pos[0] * internal_state.pos_rel[1+2*a] - internal_state.pos[1] * internal_state.pos_rel[0+2*a]);
@@ -201,9 +202,27 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
         }
       }
 
-       // Propagate leader unit
-       internal_state.vel[0] += u_roll[h][0]*pi->dh;
-       internal_state.vel[1] += u_roll[h][1]*pi->dh;
+      // Propagate leader unit
+      internal_state.vel[0] += u_roll[h][0]*pi->dh;
+      internal_state.vel[1] += u_roll[h][1]*pi->dh;
+
+      // Check max velocity
+      if(internal_state.vel[0] > pi->MAX_SPEED){
+        internal_state.vel[0]  = pi->MAX_SPEED;
+      }
+
+      if(internal_state.vel[1] > pi->MAX_SPEED){
+        internal_state.vel[1]  = pi->MAX_SPEED;
+      }
+
+      if(internal_state.vel[0] < -1*pi->MAX_SPEED){
+        internal_state.vel[0]  = -1*pi->MAX_SPEED;
+      }
+
+      if(internal_state.vel[1] < -1*pi->MAX_SPEED){
+        internal_state.vel[1]  = -1*pi->MAX_SPEED;
+      }
+
        internal_state.pos[0] += internal_state.vel[0]*pi->dh;
        internal_state.pos[1] += internal_state.vel[1]*pi->dh;
 
@@ -259,16 +278,37 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
 
   // Compute optimal controls
   //printf("exploring control 0:%f,%f Internal control 1:%f %f\n",pi->u_exp[0][0],pi->u_exp[0][1],internal_controls[0][0],internal_controls[0][1]);
-  result->pi_vel.x = st->vel[0] + (pi->u_exp[0][0] + internal_controls[0][0])*0.09;
-  result->pi_vel.y = st->vel[1] + (pi->u_exp[0][1] + internal_controls[0][1])*0.09;
+  float ned_vel_n = st->vel[0] + (pi->u_exp[0][0] + internal_controls[0][0])*0.09;
+  float ned_vel_e  = st->vel[1] + (pi->u_exp[0][1] + internal_controls[0][1])*0.09;
 
-  // Save controls for importance sampling
-  for(int h = 0; h < pi->iH; h++){
-    pi->u_exp[h][0] += internal_controls[h][0];
-    pi->u_exp[h][1] += internal_controls[h][1];
-  }
+  //Convert from NED to body coordinates
+  result->pi_vel.x =  cosf(st->psi) * ned_vel_n  + sinf(st->psi) * ned_vel_e;
+  result->pi_vel.y = -sinf(st->psi) * ned_vel_n  + cosf(st->psi) * ned_vel_e;
 
-  if(result->pi_vel.x > 0 && result->pi_vel.y > 0 && !isnan(result->pi_vel.x) && !isnan(result->pi_vel.y)){
+
+  if(!isnan(result->pi_vel.x) && !isnan(result->pi_vel.y)){
+
+    if(result->pi_vel.x > pi->MAX_SPEED){
+      result->pi_vel.x  = pi->MAX_SPEED;
+    }
+
+    if(result->pi_vel.y > pi->MAX_SPEED){
+      result->pi_vel.y  = pi->MAX_SPEED;
+    }
+
+    if(result->pi_vel.x < -1*pi->MAX_SPEED){
+      result->pi_vel.x  = -1*pi->MAX_SPEED;
+    }
+
+    if(result->pi_vel.y < -1*pi->MAX_SPEED){
+      result->pi_vel.y  = -1*pi->MAX_SPEED;
+    }
+
+    // Save controls for importance sampling
+    for(int h = 0; h < pi->iH; h++){
+      pi->u_exp[h][0] += internal_controls[h][0];
+      pi->u_exp[h][1] += internal_controls[h][1];
+    }
     success = true;
   }
 

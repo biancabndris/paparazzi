@@ -71,6 +71,7 @@ void pi_init(void)
   // Update state information
   set_state(&st);
 
+  //set_wps();
 #if PERIODIC_TELEMETRY
   register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_PATH_INTEGRAL, pi_telem_send);
 #endif
@@ -134,8 +135,8 @@ static void *pi_calc_thread(void *arg __attribute__((unused)))
     elapsed = (finish.tv_sec - start.tv_sec);
     elapsed += (finish.tv_nsec - start.tv_nsec) / 1000000000.0;
 
-    printf("------ ELAPSED TIME: %f\n----------",elapsed);
-    printf("Controls 0: %f , Controls 1: %f\n", temp_result.pi_vel.x, temp_result.pi_vel.y);
+    //printf("------ ELAPSED TIME: %f\n----------",elapsed);
+    //printf("Controls 0: %f , Controls 1: %f\n", temp_result.pi_vel.x, temp_result.pi_vel.y);
 
     // Copy the result if finished
     pthread_mutex_lock(&pi_mutex);
@@ -166,7 +167,8 @@ void pi_run(void){
                             pi_result.pi_vel.x,
                             pi_result.pi_vel.y);
     pi_got_result = false;
-    printf("!!!Event detected: Got result!!!");
+    //printf("!!!Event detected: Got result!!!");
+    printf("[state] x %f, y %f. Controls x %f, y %f\n", st.pos[0], st.pos[1], pi_result.pi_vel.x, pi_result.pi_vel.y);
   }
   pthread_mutex_unlock(&pi_mutex);
 

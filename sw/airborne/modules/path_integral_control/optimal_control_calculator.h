@@ -64,10 +64,11 @@ extern bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, 
 
 static inline void set_state(struct pi_state_t *st){
 
-  st->pos[0]     = stateGetPositionEnu_f()->x;
-  st->pos[1]     = stateGetPositionEnu_f()->y;
-  st->vel[0]     = stateGetSpeedEnu_f()->x;
-  st->vel[1]     = stateGetSpeedEnu_f()->y;
+  st->pos[0]     = stateGetPositionNed_f()->x;
+  st->pos[1]     = stateGetPositionNed_f()->y;
+  st->vel[0]     = stateGetSpeedNed_f()->x;
+  st->vel[1]     = stateGetSpeedNed_f()->y;
+  st->psi        = stateGetNedToBodyEulers_f()->psi;
 
   st->pos_rel[0] = 4;
   st->pos_rel[1] = 4;
