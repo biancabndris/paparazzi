@@ -28,6 +28,10 @@
 #include <gsl/gsl_randist.h>
 #include <math.h>
 
+
+#ifndef PI_FREQ
+#define PI_FREQ 20
+#endif
 #ifndef PI_LEADER
 #define PI_LEADER 1
 #endif
@@ -80,16 +84,17 @@
 #define PI_DIM_U 2
 #endif
 #ifndef PI_TARGET_WP_N
-#define PI_TARGET_WP_N 1
+#define PI_TARGET_WP_N -1
 #endif
 #ifndef PI_TARGET_WP_E
-#define PI_TARGET_WP_E 2
+#define PI_TARGET_WP_E -2
 #endif
 
 
 
 void pi_calc_init(struct path_integral_t *pi){
 
+     pi->freq               = PI_FREQ;
      pi->leader             = PI_LEADER;
      pi->H                  = PI_HORIZON;
      pi->dh                 = PI_DH;
@@ -193,8 +198,6 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
           if(dist_unit > pi->COLLISION_DISTANCE ){}
           else{ samples_cost[n] += exp(pi->COLLISION_PENALTY *(pi->COLLISION_DISTANCE - dist_unit));}
 
-
-
           float cross_product_3 = abs(internal_state.pos[0] * internal_state.pos_rel[1+2*a] - internal_state.pos[1] * internal_state.pos_rel[0+2*a]);
           if(cross_product_3 > pi->PARALLEL_THR){}
           else{samples_cost[n] += exp(pi->PARALLEL_PENALTY *(pi->PARALLEL_THR - cross_product_3));}
@@ -278,8 +281,8 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
 
   // Compute optimal controls
   //printf("exploring control 0:%f,%f Internal control 1:%f %f\n",pi->u_exp[0][0],pi->u_exp[0][1],internal_controls[0][0],internal_controls[0][1]);
-  float ned_vel_n = st->vel[0] + (pi->u_exp[0][0] + internal_controls[0][0])*0.09;
-  float ned_vel_e  = st->vel[1] + (pi->u_exp[0][1] + internal_controls[0][1])*0.09;
+  float ned_vel_n = st->vel[0] + (pi->u_exp[0][0] + internal_controls[0][0])*(1/pi->freq);
+  float ned_vel_e  = st->vel[1] + (pi->u_exp[0][1] + internal_controls[0][1])*(1/pi->freq);
 
   //Convert from NED to body coordinates
   result->pi_vel.x =  cosf(st->psi) * ned_vel_n  + sinf(st->psi) * ned_vel_e;

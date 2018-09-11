@@ -82,7 +82,7 @@ NOTE: A velocity forcefield in the horizontal plane applied here, so if an obsta
 -->
 
     <block name="Go Forward">
-      <while cond="LessThan(block_time,15)"><!--LessThan(block_time,5)"/-->
+      <while cond="LessThan(block_time,20)"><!--LessThan(block_time,5)"/-->
         <call_once fun="autopilot_guided_update(GUIDED_FLAG_XY_VEL_BODY,opt_vel_x,opt_vel_y,-nominal_alt,desired_heading)"/>
       </while>
       <deroute block="Hover"/>

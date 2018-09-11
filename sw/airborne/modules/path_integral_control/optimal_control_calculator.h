@@ -30,6 +30,7 @@
 #include "state.h"
 
 struct path_integral_t{
+   float freq;
    bool leader;
    uint8_t H;
    float dh;

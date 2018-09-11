@@ -131,13 +131,6 @@ static void *pi_calc_thread(void *arg __attribute__((unused)))
 
     bool success = pi_calc_timestep(&pi, &temp_state, &temp_result);
 
-    clock_gettime(CLOCK_MONOTONIC, &finish);
-    elapsed = (finish.tv_sec - start.tv_sec);
-    elapsed += (finish.tv_nsec - start.tv_nsec) / 1000000000.0;
-
-    //printf("------ ELAPSED TIME: %f\n----------",elapsed);
-    //printf("Controls 0: %f , Controls 1: %f\n", temp_result.pi_vel.x, temp_result.pi_vel.y);
-
     // Copy the result if finished
     pthread_mutex_lock(&pi_mutex);
     if(success){
@@ -145,6 +138,17 @@ static void *pi_calc_thread(void *arg __attribute__((unused)))
     }
     pi_got_result = success;
     pthread_mutex_unlock(&pi_mutex);
+
+    clock_gettime(CLOCK_MONOTONIC, &finish);
+    elapsed = (finish.tv_sec - start.tv_sec);
+    elapsed += (finish.tv_nsec - start.tv_nsec) / 1000000000.0;
+
+    //Sleep to avoid having the optimal controls computed at a higher frequency
+    if(elapsed < 1/pi.freq){
+      sleep(1/pi.freq - elapsed);
+    }
+    //printf("------ ELAPSED TIME: %f\n----------",elapsed);
+    //printf("Controls 0: %f , Controls 1: %f\n", temp_result.pi_vel.x, temp_result.pi_vel.y);
   }
   return 0;
 }
