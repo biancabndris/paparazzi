@@ -77,16 +77,6 @@
     <set servo="BOTTOM_LEFT" value="motor_mixing.commands[MOTOR_BACK_LEFT]"/>
   </command_laws>
 
-  <!-- Cyberzoo bebop1 values -->
-  <section name="COLORFILTER" prefix="ORANGE_AVOIDER_">
-    <define name="LUM_MIN" value="20"/>
-    <define name="LUM_MAX" value="180"/>
-    <define name="CB_MIN" value="75"/>
-    <define name="CB_MAX" value="145"/>
-    <define name="CR_MIN" value="167"/>
-    <define name="CR_MAX" value="255"/>
-  </section>
-
   <section name="AIR_DATA" prefix="AIR_DATA_">
     <define name="CALC_AIRSPEED" value="FALSE"/>
     <define name="CALC_TAS_FACTOR" value="FALSE"/>
@@ -201,12 +191,13 @@
   <section name="GUIDANCE_H" prefix="GUIDANCE_H_">
     <!-- Good weather -->
     <define name="MAX_BANK" value="20" unit="deg"/>
-    <define name="REF_MAX_SPEED" value="2" unit="m/s"/>
+    <define name="REF_MAX_SPEED" value="0.5" unit="m/s"/>
     <!-- Bad weather -->
     <!-- define name="MAX_BANK" value="32" unit="deg"/ -->
-    <define name="PGAIN" value="120"/>
-    <define name="DGAIN" value="230"/>
-    <define name="IGAIN" value="40"/>
+    <define name="PGAIN" value="350"/>
+    <define name="DGAIN" value="100"/>
+    <define name="IGAIN" value="30"/>
+    <define name="USE_SPEED_REF" value="TRUE"/>
   </section>
 
   <section name="NAVIGATION" prefix="NAV_">
@@ -232,9 +223,9 @@
 
   <section name="BAT">
     <define name="MILLIAMP_AT_FULL_THROTTLE" value="8700"/>
-    <define name="CATASTROPHIC_BAT_LEVEL" value="9.6" unit="V"/>
-    <define name="CRITIC_BAT_LEVEL" value="9.9" unit="V"/>
-    <define name="LOW_BAT_LEVEL" value="10.8" unit="V"/>
+    <define name="CATASTROPHIC_BAT_LEVEL" value="9.9" unit="V"/>
+    <define name="CRITIC_BAT_LEVEL" value="10.8" unit="V"/>
+    <define name="LOW_BAT_LEVEL" value="11.1" unit="V"/>
     <define name="MAX_BAT_LEVEL" value="12.4" unit="V"/>
   </section>
 </airframe>
