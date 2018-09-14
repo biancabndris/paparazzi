@@ -27,7 +27,7 @@
 #include <gsl/gsl_rng.h>
 #include <gsl/gsl_randist.h>
 #include <math.h>
-
+#include <stdio.h>
 
 #ifndef PI_FREQ
 #define PI_FREQ 20
@@ -83,12 +83,6 @@
 #ifndef PI_DIM_U
 #define PI_DIM_U 2
 #endif
-#ifndef PI_TARGET_WP_N
-#define PI_TARGET_WP_N -1
-#endif
-#ifndef PI_TARGET_WP_E
-#define PI_TARGET_WP_E -2
-#endif
 
 
 
@@ -117,8 +111,8 @@ void pi_calc_init(struct path_integral_t *pi){
      pi->units              = PI_UNITS;
      pi->dimU               = PI_DIM_U;
 
-     pi->wps[0]             = PI_TARGET_WP_N;
-     pi->wps[1]             = PI_TARGET_WP_E;
+     //pi->wps[0]             = 0;//PI_TARGET_WP_N;
+     //pi->wps[1]             = 0;//PI_TARGET_WP_E;
 
 
      for(int h=0; h<pi->iH; h++) {
@@ -136,10 +130,11 @@ void pi_calc_init(struct path_integral_t *pi){
  * @param[in]   *st The state of the drone
  * @param[out]  *result the computed optimal controls
  */
-bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct pi_result_t *result){
+bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct pi_wp_t *wp, struct pi_result_t *result){
 
   bool success = false;
 
+  //printf("WHEN CALCULATING STATE N %f, E %f, VN %f, VE %f\n",st->pos[0], st->pos[1], st->vel[0], st->vel[1] );
   float noise[pi->N][pi->iH][pi->dimU];
   float u_roll[pi->iH][pi->dimU];
   gsl_rng *r = gsl_rng_alloc(gsl_rng_mt19937);
@@ -174,10 +169,10 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
       //printf("control cost %f\n", samples_cost[n]);
 
       if(pi->leader){
-        float dist_target = (internal_state.pos[0]- pi-> wps[0]) * (internal_state.pos[0]- pi-> wps[0]) + (internal_state.pos[1]- pi-> wps[1]) * (internal_state.pos[1]- pi-> wps[1]);
+        float dist_target = (internal_state.pos[0]- wp->pos_N) * (internal_state.pos[0]- wp->pos_N) + (internal_state.pos[1]- wp->pos_E ) * (internal_state.pos[1]- wp->pos_E );
         samples_cost[n] += pi->TARGET_PENALTY* pi->dh * dist_target;
         //printf("target cost %f\n", samples_cost[n]);
-        float cross_product_3 = abs(internal_state.vel[0] * pi->wps[1] - internal_state.vel[1] * pi->wps[0]);
+        float cross_product_3 = abs(internal_state.vel[0] * wp->pos_E - internal_state.vel[1] * wp->pos_N);
         samples_cost[n] += pi->HEADING_PENALTY * pi->dh * cross_product_3;
         //printf("heading cost %f\n", samples_cost[n]);
         for(int a=0; a < pi->units-1; a++){
@@ -241,7 +236,7 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
 
   }
 
-  printf("Min cost is:%f\n",min_cost);
+  //printf("Min cost is:%f\n",min_cost);
 
 
   // Compute weight of all samples N

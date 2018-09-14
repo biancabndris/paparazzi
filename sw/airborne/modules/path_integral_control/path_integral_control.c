@@ -35,6 +35,8 @@
 struct path_integral_t pi;
 struct pi_result_t pi_result;
 struct pi_state_t st;
+struct pi_wp_t wp;
+struct traj_t trajectory;
 static bool pi_got_result;
 static pthread_t path_integral_thread;
 static pthread_mutex_t pi_mutex;
@@ -51,7 +53,7 @@ static void pi_telem_send(struct transport_tx *trans, struct link_device *dev)
 {
   pthread_mutex_lock(&pi_mutex);
   pprz_msg_send_PATH_INTEGRAL(trans, dev, AC_ID,
-                               &pi_result.pi_vel.x, &pi_result.pi_vel.y);
+                               &pi_result.pi_vel.x, &pi_result.pi_vel.y, &wp.pos_E, &wp.pos_N );
   pthread_mutex_unlock(&pi_mutex);
 }
 #endif
@@ -70,8 +72,14 @@ void pi_init(void)
 
   // Update state information
   set_state(&st);
+  set_trajectory(&trajectory);
 
-  //set_wps();
+  // Initialize the wp
+  wp.pos_N = trajectory.wps[0].pos_N;
+  wp.pos_E = trajectory.wps[0].pos_E;
+  wp.wp_index = trajectory.wps[0].wp_index;
+
+
 #if PERIODIC_TELEMETRY
   register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_PATH_INTEGRAL, pi_telem_send);
 #endif
@@ -119,7 +127,9 @@ static void *pi_calc_thread(void *arg __attribute__((unused)))
     // Copy the state
     pthread_mutex_lock(&pi_mutex);
     struct pi_state_t temp_state;
+    struct pi_wp_t temp_wp;
     memcpy(&temp_state, &st, sizeof(struct pi_state_t));
+    memcpy(&temp_wp, &wp, sizeof(struct pi_wp_t));
     pthread_mutex_unlock(&pi_mutex);
 
     // Compute the optimal controls
@@ -129,7 +139,7 @@ static void *pi_calc_thread(void *arg __attribute__((unused)))
     float elapsed;
     clock_gettime(CLOCK_MONOTONIC, &start);
 
-    bool success = pi_calc_timestep(&pi, &temp_state, &temp_result);
+    bool success = pi_calc_timestep(&pi, &temp_state, &temp_wp, &temp_result);
 
     // Copy the result if finished
     pthread_mutex_lock(&pi_mutex);
@@ -137,6 +147,10 @@ static void *pi_calc_thread(void *arg __attribute__((unused)))
       memcpy(&pi_result, &temp_result, sizeof(struct pi_result_t));
     }
     pi_got_result = success;
+
+    //printf("------ ELAPSED TIME: %f\n----------",elapsed);
+    //printf("CONTROLS 0: %f , Controls 1: %f\n", temp_result.pi_vel.x, temp_result.pi_vel.y);
+
     pthread_mutex_unlock(&pi_mutex);
 
     clock_gettime(CLOCK_MONOTONIC, &finish);
@@ -144,12 +158,10 @@ static void *pi_calc_thread(void *arg __attribute__((unused)))
     elapsed += (finish.tv_nsec - start.tv_nsec) / 1000000000.0;
 
     //Sleep to avoid having the optimal controls computed at a higher frequency
-    if(elapsed < 1/pi.freq){
+/*    if(elapsed < 1/pi.freq){
       sleep(1/pi.freq - elapsed);
-    }
-    //printf("------ ELAPSED TIME: %f\n----------",elapsed);
-    //printf("Controls 0: %f , Controls 1: %f\n", temp_result.pi_vel.x, temp_result.pi_vel.y);
-  }
+    }*/
+      }
   return 0;
 }
 
@@ -163,6 +175,8 @@ void pi_run(void){
 
   // Update state information
   set_state(&st);
+  //printf("STATE N %f, E %f\n",st.pos[0],st.pos[1]);
+  check_wp(&wp, &trajectory);
 
   // Update the stabilization loops on the current calculation
   if (pi_got_result){
@@ -172,11 +186,9 @@ void pi_run(void){
                             pi_result.pi_vel.y);
     pi_got_result = false;
     //printf("!!!Event detected: Got result!!!");
-    printf("[state] x %f, y %f. Controls x %f, y %f\n", st.pos[0], st.pos[1], pi_result.pi_vel.x, pi_result.pi_vel.y);
+    //printf("[SEND] x %f, y %f. Controls x %f, y %f\n", st.pos[0], st.pos[1], pi_result.pi_vel.x, pi_result.pi_vel.y);
   }
   pthread_mutex_unlock(&pi_mutex);
 
 }
-
-
 

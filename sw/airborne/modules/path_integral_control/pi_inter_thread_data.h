@@ -42,4 +42,10 @@ struct pi_state_t{
    float vel_rel[4];
 };
 
+struct pi_wp_t{
+   float pos_N;
+   float pos_E;
+   int wp_index;
+};
+
 #endif
