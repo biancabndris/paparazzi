@@ -32,6 +32,8 @@
 #include "state.h"
 #include "navigation.h"
 #include <stdio.h>
+#include <gsl/gsl_rng.h>
+#include <gsl/gsl_randist.h>
 
 struct path_integral_t{
    float freq;
@@ -57,6 +59,7 @@ struct path_integral_t{
    uint8_t units;
    uint8_t dimU;
 
+   gsl_rng *seed;
 
    //float wps[2];
    float u_exp[5][2];
@@ -90,6 +93,49 @@ static inline void set_state(struct pi_state_t *st){
   st->vel_rel[3] = 0;
 }
 
+static inline void simulate_virtual_leader(struct pi_state_t *st){
+
+  //Simulate a leader flying in a rectangle [-0.5,0.5] N and [-1,1] E
+  //Virtual leader start position is 0E -0.5N
+
+  //Propagate
+  st->pos_rel[0] += st->vel_rel[0]*0.05;
+  st->pos_rel[1] += st->vel_rel[1]*0.05;
+  //printf("pos N %f, pos E %f\n",st->pos_rel[0], st->pos_rel[1]);
+
+  float dist1 = (-0.5 - st->pos_rel[0])*(-0.5 - st->pos_rel[0]) + (1.2 - st->pos_rel[1])*(1.2 - st->pos_rel[1]);
+  float dist2 = (0.5 - st->pos_rel[0])*(0.5 - st->pos_rel[0]) + (1.2 - st->pos_rel[1])*(1.2 - st->pos_rel[1]);
+  float dist3 = (0.5 - st->pos_rel[0])*(0.5 - st->pos_rel[0]) + (-1.2 - st->pos_rel[1])*(-1.2 - st->pos_rel[1]);
+  float dist4 = (-0.5 - st->pos_rel[0])*(-0.5 - st->pos_rel[0]) + (-1.2 - st->pos_rel[1])*(-1.2 - st->pos_rel[1]);
+  //printf("dist1 %f, dist2  %f, dist3 %f, dist4  %f \n",dist1, dist2, dist3, dist4);
+  if(dist1 <= 0.0325f){
+    printf("yes");
+    st->vel_rel[0]= 0.2;//v2[0];
+    st->vel_rel[1] = 0;//v2[1];
+  }
+  else if(dist2 <= 0.0325f){
+    st->vel_rel[0] = 0;
+    st->vel_rel[1] = -0.2;
+  }
+  else if(dist3 <= 0.0325f){
+    st->vel_rel[0] = -0.2;
+    st->vel_rel[1] = 0;
+  }
+  else if(dist4 <= 0.0325f){
+    st->vel_rel[0] = 0;
+    st->vel_rel[1] = 0.2;
+  }
+  //printf("vel N %f, vel E %f\n",st->vel_rel[0], st->vel_rel[1]);
+}
+
+static inline void init_virtual_leader(struct pi_state_t *st){
+
+  st->pos_rel[0] = -0.5;
+  st->pos_rel[1] = 0;
+  st->vel_rel[0] = 0;
+  st->vel_rel[1] = 0.2;
+
+}
 
 static inline void check_wp(struct pi_wp_t *wp, struct traj_t *trajectory){
 
@@ -119,20 +165,20 @@ static inline void check_wp(struct pi_wp_t *wp, struct traj_t *trajectory){
 
 static inline void set_trajectory(struct traj_t *trajectory){
 
-  trajectory->wps[0].pos_N = -0.5;//-2;
-  trajectory->wps[0].pos_E = -1.5;//-1;
+  trajectory->wps[0].pos_N = 1;//-2;
+  trajectory->wps[0].pos_E = 1.5;//-1;
   trajectory->wps[0].wp_index = 0;
 
-  trajectory->wps[1].pos_N = -0.5;//2;
-  trajectory->wps[1].pos_E = -1.5;//-1;
+  trajectory->wps[1].pos_N = 1;//2;
+  trajectory->wps[1].pos_E = 1.5;//1.5;//-1;
   trajectory->wps[1].wp_index = 1;
 
-  trajectory->wps[2].pos_N = -0.5;//0;
-  trajectory->wps[2].pos_E = -1.5;//0;
+  trajectory->wps[2].pos_N = 1;//0.5;//0;
+  trajectory->wps[2].pos_E = 1.5;//1.5;//0;
   trajectory->wps[2].wp_index = 2;
 
-  trajectory->wps[3].pos_N = -0.5;//0;
-  trajectory->wps[3].pos_E = -1.5;//0;
+  trajectory->wps[3].pos_N = 1;//0.5;//0;
+  trajectory->wps[3].pos_E = 1.5;//0;
   trajectory->wps[3].wp_index = 3;
 }
 

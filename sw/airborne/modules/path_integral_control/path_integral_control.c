@@ -53,7 +53,7 @@ static void pi_telem_send(struct transport_tx *trans, struct link_device *dev)
 {
   pthread_mutex_lock(&pi_mutex);
   pprz_msg_send_PATH_INTEGRAL(trans, dev, AC_ID,
-                               &pi_result.pi_vel.x, &pi_result.pi_vel.y, &wp.pos_E, &wp.pos_N );
+                               &pi_result.pi_vel.x, &pi_result.pi_vel.y, &wp.pos_E, &wp.pos_N); //&st.pos_rel[0], &st.pos_rel[1]
   pthread_mutex_unlock(&pi_mutex);
 }
 #endif
@@ -72,8 +72,9 @@ void pi_init(void)
 
   // Update state information
   set_state(&st);
+  //init_virtual_leader(&st);
   set_trajectory(&trajectory);
-
+  //printf("INIT STATE N %f, E %f\n",st.pos_rel[0],st.pos_rel[1]);
   // Initialize the wp
   wp.pos_N = trajectory.wps[0].pos_N;
   wp.pos_E = trajectory.wps[0].pos_E;
@@ -148,8 +149,8 @@ static void *pi_calc_thread(void *arg __attribute__((unused)))
     }
     pi_got_result = success;
 
-    //printf("------ ELAPSED TIME: %f\n----------",elapsed);
-    //printf("CONTROLS 0: %f , Controls 1: %f\n", temp_result.pi_vel.x, temp_result.pi_vel.y);
+
+    printf("CONTROLS 0: %f , Controls 1: %f\n", temp_result.pi_vel.x, temp_result.pi_vel.y);
 
     pthread_mutex_unlock(&pi_mutex);
 
@@ -157,6 +158,7 @@ static void *pi_calc_thread(void *arg __attribute__((unused)))
     elapsed = (finish.tv_sec - start.tv_sec);
     elapsed += (finish.tv_nsec - start.tv_nsec) / 1000000000.0;
 
+    //printf("------ ELAPSED TIME: %f\n----------",elapsed);
     //Sleep to avoid having the optimal controls computed at a higher frequency
 /*    if(elapsed < 1/pi.freq){
       sleep(1/pi.freq - elapsed);
@@ -174,9 +176,12 @@ void pi_run(void){
   pthread_mutex_lock(&pi_mutex);
 
   // Update state information
-  set_state(&st);
-  //printf("STATE N %f, E %f\n",st.pos[0],st.pos[1]);
-  check_wp(&wp, &trajectory);
+
+  uint32_t now = get_sys_time_usec();
+  printf("[BEFORE SENDING ABI] %d x %f, y %f, vel x %f vel y %f Controls x %f, y %f\n", now, st.pos[0], st.pos[1], st.vel[0], st.vel[1], pi_result.pi_vel.x, pi_result.pi_vel.y);
+  //simulate_virtual_leader(&st);
+  //printf("VIRTUAL N %f, E %f\n",st.pos_rel[0],st.pos_rel[1]);
+
 
   // Update the stabilization loops on the current calculation
   if (pi_got_result){
@@ -186,8 +191,12 @@ void pi_run(void){
                             pi_result.pi_vel.y);
     pi_got_result = false;
     //printf("!!!Event detected: Got result!!!");
-    //printf("[SEND] x %f, y %f. Controls x %f, y %f\n", st.pos[0], st.pos[1], pi_result.pi_vel.x, pi_result.pi_vel.y);
+    //printf("[SEND] %d x %f, y %f, vel x %f vel y %f Controls x %f, y %f\n", now_ts, st.pos[0], st.pos[1], st.vel[0], st.vel[1], pi_result.pi_vel.x, pi_result.pi_vel.y);
   }
+  set_state(&st);
+  uint32_t now2 = get_sys_time_usec();
+  printf("[AFTER SENDING ABI] %d x %f, y %f, vel x %f vel y %f Controls x %f, y %f\n", now2, st.pos[0], st.pos[1], st.vel[0], st.vel[1], pi_result.pi_vel.x, pi_result.pi_vel.y);
+  check_wp(&wp, &trajectory);
   pthread_mutex_unlock(&pi_mutex);
 
 }
