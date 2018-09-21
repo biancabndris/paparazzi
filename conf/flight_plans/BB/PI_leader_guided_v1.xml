@@ -69,8 +69,8 @@ Remember to choose AP_MODE_GUIDED or else it won't work!!!
       <call_once fun="autopilot_guided_update(GUIDED_FLAG_XY_OFFSET_Z_VEL,0.,0.,-climb_descent_vel,desired_heading)"/>
       <!--call_once fun="autopilot_guided_goto_ned_relative(0.,0.,-3.0,0.)"/-->
       <while cond="LessThan(stateGetPositionEnu_f()->z,nominal_alt-0.2)"></while>
-      <call_once fun="autopilot_guided_update(GUIDED_FLAG_XY_OFFSET,0.,0.,-nominal_alt,desired_heading)"/>
-      <while cond="LessThan(stage_time,1)"/>
+	<call_once fun="autopilot_guided_update(GUIDED_FLAG_XY_OFFSET,0.,0.,-nominal_alt,desired_heading)"/>
+      <while cond="LessThan(stage_time,3)"/>
     </block>
 
 <!-- Go Forward:
