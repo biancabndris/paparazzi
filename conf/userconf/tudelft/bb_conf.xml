@@ -1,8 +1,20 @@
 <conf>
   <aircraft
-   name="PI_bebop"
-   ac_id="42"
-   airframe="airframes/BB/PI_bebop_course2018_orangeavoid.xml"
+   name="PI_leader"
+   ac_id="129"
+   airframe="airframes/BB/PI_leader.xml"
+   radio="radios/dummy.xml"
+   telemetry="telemetry/BB/pi_default_rotorcraft.xml"
+   flight_plan="flight_plans/BB/PI_leader_guided_v1.xml"
+   settings="settings/rotorcraft_basic.xml"
+   settings_modules="modules/air_data.xml modules/ins_extended.xml modules/ahrs_int_cmpl_quat.xml modules/stabilization_indi_simple.xml modules/nav_basic_rotorcraft.xml modules/guidance_rotorcraft.xml modules/gps.xml modules/imu_common.xml"
+   gui_color="white"
+   release="593ed974ecf1a78f2eb2b0168a6fa0c93fad8259"
+  />
+  <aircraft
+   name="PI_follower"
+   ac_id="128"
+   airframe="airframes/BB/PI_follower.xml"
    radio="radios/dummy.xml"
    telemetry="telemetry/BB/pi_default_rotorcraft.xml"
    flight_plan="flight_plans/BB/PI_leader_guided_v1.xml"

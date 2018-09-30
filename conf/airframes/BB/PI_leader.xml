@@ -8,7 +8,7 @@
   <firmware name="rotorcraft">
     <target name="ap" board="bebop">
       <configure name="MODEM_HOST"  value="192.168.1.136"/>
-      <configure name="HOST"  value="192.168.1.135"/>
+      <configure name="HOST"  value="192.168.1.137"/>
     </target>
 
     <target name="nps" board="pc">
@@ -42,8 +42,9 @@
     <module name="logger_file">
       <define name="FILE_LOGGER_PATH" value="/data/ftp/internal_000"/>
     </module-->
-
+    <module name="traffic_info.xml"/>
     <module name="path_integral_control" />
+
 
   </firmware>
 
@@ -191,10 +192,10 @@
   <section name="GUIDANCE_H" prefix="GUIDANCE_H_">
     <!-- Good weather -->
     <define name="MAX_BANK" value="20" unit="deg"/>
-    <define name="REF_MAX_SPEED" value="0.2" unit="m/s"/>
+    <define name="REF_MAX_SPEED" value="0.5" unit="m/s"/>
     <!-- Bad weather -->
     <!-- define name="MAX_BANK" value="32" unit="deg"/ -->
-    <define name="PGAIN" value="360"/>
+    <define name="PGAIN" value="365"/>
     <define name="DGAIN" value="100"/>
     <define name="IGAIN" value="35"/>
     <define name="USE_SPEED_REF" value="TRUE"/>
