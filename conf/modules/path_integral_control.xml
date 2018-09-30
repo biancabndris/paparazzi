@@ -40,5 +40,6 @@
     <file name="path_integral_control.c"/>
     <file name="optimal_control_calculator.c"/>
     <flag name="LDFLAGS" value="lgsl"/>
+    <file name="traffic_info.c" dir="modules/multi"/>
   </makefile>
 </module>

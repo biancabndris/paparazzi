@@ -30,7 +30,7 @@
 #include <errno.h>
 #include "state.h"
 #include "subsystems/abi.h"
-
+#include "modules/multi/traffic_info.h"
 
 struct path_integral_t pi;
 struct pi_result_t pi_result;
@@ -53,7 +53,7 @@ static void pi_telem_send(struct transport_tx *trans, struct link_device *dev)
 {
   pthread_mutex_lock(&pi_mutex);
   pprz_msg_send_PATH_INTEGRAL(trans, dev, AC_ID,
-                               &pi_result.pi_vel.x, &pi_result.pi_vel.y, &wp.pos_E, &wp.pos_N); //&st.pos_rel[0], &st.pos_rel[1]
+                               &pi_result.pi_vel.x, &pi_result.pi_vel.y, &st.pos_rel[0], &st.pos_rel[1]); //&st.pos_rel[0], &st.pos_rel[1]
   pthread_mutex_unlock(&pi_mutex);
 }
 #endif
@@ -150,7 +150,7 @@ static void *pi_calc_thread(void *arg __attribute__((unused)))
     pi_got_result = success;
 
 
-    printf("CONTROLS 0: %f , Controls 1: %f\n", temp_result.pi_vel.x, temp_result.pi_vel.y);
+    //printf("CONTROLS 0: %f , Controls 1: %f\n", temp_result.pi_vel.x, temp_result.pi_vel.y);
 
     pthread_mutex_unlock(&pi_mutex);
 
@@ -178,7 +178,7 @@ void pi_run(void){
   // Update state information
 
   uint32_t now = get_sys_time_usec();
-  printf("[BEFORE SENDING ABI] %d x %f, y %f, vel x %f vel y %f Controls x %f, y %f\n", now, st.pos[0], st.pos[1], st.vel[0], st.vel[1], pi_result.pi_vel.x, pi_result.pi_vel.y);
+  //printf("[BEFORE SENDING ABI] %d x %f, y %f, vel x %f vel y %f Controls x %f, y %f\n", now, st.pos[0], st.pos[1], st.vel[0], st.vel[1], pi_result.pi_vel.x, pi_result.pi_vel.y);
   //simulate_virtual_leader(&st);
   //printf("VIRTUAL N %f, E %f\n",st.pos_rel[0],st.pos_rel[1]);
 
@@ -194,8 +194,9 @@ void pi_run(void){
     //printf("[SEND] %d x %f, y %f, vel x %f vel y %f Controls x %f, y %f\n", now_ts, st.pos[0], st.pos[1], st.vel[0], st.vel[1], pi_result.pi_vel.x, pi_result.pi_vel.y);
   }
   set_state(&st);
+
   uint32_t now2 = get_sys_time_usec();
-  printf("[AFTER SENDING ABI] %d x %f, y %f, vel x %f vel y %f Controls x %f, y %f\n", now2, st.pos[0], st.pos[1], st.vel[0], st.vel[1], pi_result.pi_vel.x, pi_result.pi_vel.y);
+  //printf("[AFTER SENDING ABI] %d x %f, y %f, vel x %f vel y %f Controls x %f, y %f\n", now2, st.pos[0], st.pos[1], st.vel[0], st.vel[1], pi_result.pi_vel.x, pi_result.pi_vel.y);
   check_wp(&wp, &trajectory);
   pthread_mutex_unlock(&pi_mutex);
 

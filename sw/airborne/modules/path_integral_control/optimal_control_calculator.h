@@ -26,7 +26,7 @@
 #ifndef OPTIMAL_CONTROL_CALCULATOR_H
 #define OPTIMAL_CONTROL_CALCULATOR_H
 
-#define TRAJ_THR 0.8
+#define TRAJ_THR 0.4
 
 #include "pi_inter_thread_data.h"
 #include "state.h"
@@ -34,6 +34,7 @@
 #include <stdio.h>
 #include <gsl/gsl_rng.h>
 #include <gsl/gsl_randist.h>
+#include "modules/multi/traffic_info.h"
 
 struct path_integral_t{
    float freq;
@@ -62,7 +63,7 @@ struct path_integral_t{
    gsl_rng *seed;
 
    //float wps[2];
-   float u_exp[5][2];
+   float u_exp[10][2];
 };
 
 struct traj_t{
@@ -82,13 +83,18 @@ static inline void set_state(struct pi_state_t *st){
   st->vel[1]     = stateGetSpeedNed_f()->y;
   st->psi        = stateGetNedToBodyEulers_f()->psi;
 
-  st->pos_rel[0] = 4;
-  st->pos_rel[1] = 4;
+  uint8_t follower_id = 135;
+
+  struct EnuCoor_f *ac_pos = acInfoGetPositionEnu_f(follower_id);
+  printf("Rel pos X %f, Y %f\n",ac_pos->x,ac_pos->y);
+  st->pos_rel[0] = ac_pos->y;
+  st->pos_rel[1] = ac_pos->x;
   st->pos_rel[2] = 2;
   st->pos_rel[3] = 2;
 
-  st->vel_rel[0] = 0;
-  st->vel_rel[1] = 0.2;
+  struct EnuCoor_f *ac_vel = acInfoGetVelocityEnu_f(follower_id);
+  st->vel_rel[0] = ac_vel->y;
+  st->vel_rel[1] = ac_vel->x;
   st->vel_rel[2] = 0.2;
   st->vel_rel[3] = 0;
 }
@@ -165,20 +171,20 @@ static inline void check_wp(struct pi_wp_t *wp, struct traj_t *trajectory){
 
 static inline void set_trajectory(struct traj_t *trajectory){
 
-  trajectory->wps[0].pos_N = 1;//-2;
-  trajectory->wps[0].pos_E = 1.5;//-1;
+  trajectory->wps[0].pos_N = -1.5;//-2;
+  trajectory->wps[0].pos_E = -2;//-1;
   trajectory->wps[0].wp_index = 0;
 
-  trajectory->wps[1].pos_N = 1;//2;
-  trajectory->wps[1].pos_E = 1.5;//1.5;//-1;
+  trajectory->wps[1].pos_N = -1.5;//2;
+  trajectory->wps[1].pos_E = 2;//1.5;//-1;
   trajectory->wps[1].wp_index = 1;
 
-  trajectory->wps[2].pos_N = 1;//0.5;//0;
-  trajectory->wps[2].pos_E = 1.5;//1.5;//0;
+  trajectory->wps[2].pos_N = 1.5;//0.5;//0;
+  trajectory->wps[2].pos_E = 2;//1.5;//0;
   trajectory->wps[2].wp_index = 2;
 
-  trajectory->wps[3].pos_N = 1;//0.5;//0;
-  trajectory->wps[3].pos_E = 1.5;//0;
+  trajectory->wps[3].pos_N = 1.5;//0.5;//0;
+  trajectory->wps[3].pos_E = -2;//0;
   trajectory->wps[3].wp_index = 3;
 }
 
