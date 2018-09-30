@@ -15,6 +15,7 @@ if [ "$JOIN_WIFI" -gt "0" ]
 then
   echo "Scanning WiFi networks..."
   # see if wifi network with SSID swarmhub is available
+  bcmwl band auto
   if (bcmwl escanresults | grep "$WIFI_SSID")
   then
         # disable wifi and bring back up again
