@@ -32,18 +32,20 @@
       <define name="AHRS_USE_GPS_HEADING" value="1"/>
     </module>
     <module name="ins" type="extended"/>
-   
+  </firmware>
+
+  <modules main_freq="512">
+    <module name="geo_mag"/>
     <module name="air_data"/>
+    <module name="send_imu_mag_current"/>
     <!--module name="logger_file">
       <define name="FILE_LOGGER_PATH" value="/data/ftp/internal_000"/>
     </module-->
-
-    <module name="traffic_info" />
+    <module name="traffic_info"/>
     <module name="path_integral_control" >
-	 <define name="PI_LEADER" value="0"/>
+      <define name="LEADER" value="0"/>
     </module>
-
-  </firmware>
+  </modules>
 
   <commands>
     <axis name="PITCH" failsafe_value="0"/>

@@ -155,6 +155,7 @@ bool parse_acinfo_dl(void)
       }
       break;
       case DL_ACINFO_LLA: {
+
         set_ac_info_lla(DL_ACINFO_LLA_ac_id(dl_buffer),
                   DL_ACINFO_LLA_lat(dl_buffer),
                   DL_ACINFO_LLA_lon(dl_buffer),
@@ -180,6 +181,7 @@ void set_ac_info_utm(uint8_t id, uint32_t utm_east, uint32_t utm_north, uint32_t
     if (id > 0 && ti_acs_id[id] == 0) {    // new aircraft id
       ti_acs_id[id] = ti_acs_idx++;
       ti_acs[ti_acs_id[id]].ac_id = id;
+
     }
 
     ti_acs[ti_acs_id[id]].status = 0;
@@ -418,9 +420,18 @@ void acInfoCalcPositionEnu_f(uint8_t ac_id)
       enu_of_lla_point_f(&ti_acs[ac_nr].enu_pos_f, &state.ned_origin_f, acInfoGetPositionLla_f(ac_id));
     } else if (bit_is_set(ti_acs[ac_nr].status, AC_INFO_POS_LLA_I) || bit_is_set(ti_acs[ac_nr].status, AC_INFO_POS_UTM_I))
     {
+
       enu_of_lla_point_i(&ti_acs[ac_nr].enu_pos_i, &state.ned_origin_i, acInfoGetPositionLla_i(ac_id));
+
+      struct EnuCoor_i *enu_m;
+      struct EnuCoor_i enu_cm = ti_acs[ac_nr].enu_pos_i;
+
+      INT32_VECT3_LSHIFT(*enu_m, enu_cm, INT32_POS_FRAC - 2);
+      VECT3_SDIV(*enu_m, *enu_m, 25);
+
+      struct EnuCoor_i enu_m_i = {enu_m->x, enu_m->y, enu_m->z};
       SetBit(ti_acs[ac_nr].status, AC_INFO_POS_ENU_I);
-      ENU_FLOAT_OF_BFP(ti_acs[ac_nr].enu_pos_f, ti_acs[ac_nr].enu_pos_i);
+      ENU_FLOAT_OF_BFP(ti_acs[ac_nr].enu_pos_f, enu_m_i);
     }
   } else if (state.utm_initialized_f)
   {

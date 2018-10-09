@@ -39,8 +39,8 @@
 #include "firmwares/fixedwing/stabilization/stabilization_adaptive.h"
 #endif
 
-#include "path_integral_controller/sampler.h"
-
+#include "actuator_modelling/actuator_modelling.h"
+#include "subsystems/abi.h"
 #include "state.h"
 
 /** Set the default File logger path to the USB drive */
@@ -118,32 +118,36 @@ void file_logger_periodic(void)
   //struct Int32Quat *quat = stateGetNedToBodyQuat_i();
   struct NedCoor_f *pos  = stateGetPositionNed_f();
   struct NedCoor_f *vel  = stateGetSpeedNed_f();
-  struct Input  *controls = get_pi_optimal_controls();
-
+  struct Input  *commanded_vel = get_commanded_vel();
+  float psi = stateGetNedToBodyEulers_f()->psi;
+  //time_t timestamp = time(0);
+  uint32_t time_now = get_sys_time_usec();
 #ifdef COMMAND_THRUST //For example rotorcraft
-  fprintf(file_logger, "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%f,%f,%f,%f,%f,%f,%f,%f\n",
+  fprintf(file_logger, "%d,%d,%f,%f,%f,%f,%f,%f,%f,%f,%f\n",
           counter,
-          imu.gyro_unscaled.p,
-          imu.gyro_unscaled.q,
-          imu.gyro_unscaled.r,
-          imu.accel_unscaled.x,
-          imu.accel_unscaled.y,
-          imu.accel_unscaled.z,
+          time_now,
+          //imu.gyro_unscaled.p,
+          //imu.gyro_unscaled.q,
+          //imu.gyro_unscaled.r,
+          //imu.accel_unscaled.x,
+          //imu.accel_unscaled.y,
+          //imu.accel_unscaled.z,
           //imu.mag_unscaled.x,
           //imu.mag_unscaled.y,
           //imu.mag_unscaled.z,
-          stabilization_cmd[COMMAND_THRUST],
-          stabilization_cmd[COMMAND_ROLL],
-          stabilization_cmd[COMMAND_PITCH],
-          stabilization_cmd[COMMAND_YAW],
+          //stabilization_cmd[COMMAND_THRUST],
+          //stabilization_cmd[COMMAND_ROLL],
+          //stabilization_cmd[COMMAND_PITCH],
+          //stabilization_cmd[COMMAND_YAW],
+          psi,
           pos->x,//quat->qi,
           pos->y,//quat->qx,
           pos->z,//quat->qy,
           vel->x,
           vel->y,
           vel->z,
-          controls->oc_x,
-          controls->oc_y//quat->qz
+          commanded_vel->vel_x,
+          commanded_vel->vel_y//quat->qz
          );
 #else
   fprintf(file_logger, "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
