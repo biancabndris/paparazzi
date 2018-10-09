@@ -181,7 +181,6 @@ void pi_run(void){
 
   pthread_mutex_lock(&pi_mutex);
 
-  uint32_t now = get_sys_time_usec();
   if (pi_got_result){
     uint32_t now_ts = get_sys_time_usec();
     AbiSendMsgPATH_INTEGRAL(PATH_INTEGRAL_ID, now_ts,
