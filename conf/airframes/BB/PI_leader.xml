@@ -8,7 +8,7 @@
   <firmware name="rotorcraft">
     <target name="ap" board="bebop">
       <configure name="MODEM_HOST"  value="192.168.1.136"/>
-      <configure name="HOST"  value="192.168.1.137"/>
+      <configure name="HOST"  value="192.168.1.$(AC_ID)"/>
     </target>
 
     <target name="nps" board="pc">
@@ -28,22 +28,19 @@
     <module name="stabilization" type="indi_simple"/>
     <module name="stabilization" type="rate_indi"/>
     <module name="ahrs" type="int_cmpl_quat">
-      <configure name="USE_MAGNETOMETER" value="FALSE"/>
-      <define name="AHRS_USE_GPS_HEADING" value="TRUE"/>
+      <configure name="USE_MAGNETOMETER" value="0"/>
+      <define name="AHRS_USE_GPS_HEADING" value="1"/>
     </module>
     <module name="ins" type="extended"/>
-    <!-- <module name="guidance" type="indi"> <define name="GUIDANCE_INDI_SPECIFIC_FORCE_GAIN"
-			value="-500.0"/> <define name="GUIDANCE_INDI_THRUST_DYNAMICS" value="0.1"/>
-			<define name="GUIDANCE_INDI_RC_DEBUG" value="TRUE"/> </module> -->
-
-    <!--module name="geo_mag"/-->
     <module name="air_data"/>
-    <!--module name="send_imu_mag_current"/>
-    <module name="logger_file">
+    <!--module name="logger_file">
       <define name="FILE_LOGGER_PATH" value="/data/ftp/internal_000"/>
     </module-->
-    <module name="traffic_info.xml"/>
-    <module name="path_integral_control" />
+
+    <module name="traffic_info"/>
+    <module name="path_integral_control" >
+	 <define name="LEADER" value="1"/>
+    </module>
 
 
   </firmware>
@@ -192,12 +189,12 @@
   <section name="GUIDANCE_H" prefix="GUIDANCE_H_">
     <!-- Good weather -->
     <define name="MAX_BANK" value="20" unit="deg"/>
-    <define name="REF_MAX_SPEED" value="0.5" unit="m/s"/>
+    <define name="REF_MAX_SPEED" value="1" unit="m/s"/>
     <!-- Bad weather -->
     <!-- define name="MAX_BANK" value="32" unit="deg"/ -->
-    <define name="PGAIN" value="365"/>
-    <define name="DGAIN" value="100"/>
-    <define name="IGAIN" value="35"/>
+    <define name="PGAIN" value="77"/>
+    <define name="DGAIN" value="180"/>
+    <define name="IGAIN" value="7"/>
     <define name="USE_SPEED_REF" value="TRUE"/>
   </section>
 

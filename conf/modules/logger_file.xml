@@ -11,7 +11,7 @@
   <header>
 	<file name="file_logger.h" />
   </header>
-  <periodic fun="file_logger_periodic()" start="file_logger_start()"
+  <periodic fun="file_logger_periodic()" freq="20" start="file_logger_start()"
 		    stop="file_logger_stop()" autorun="FALSE" />
   <makefile>
 	<file name="file_logger.c"/>
