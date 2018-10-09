@@ -44,6 +44,7 @@ static pthread_mutex_t pi_mutex;
 
 #if PERIODIC_TELEMETRY
 #include "subsystems/datalink/telemetry.h"
+
 /**
  * Send path integral control telemetry information
  * @param[in] *trans The transport structure to send the information over
@@ -53,10 +54,19 @@ static void pi_telem_send(struct transport_tx *trans, struct link_device *dev)
 {
   pthread_mutex_lock(&pi_mutex);
   pprz_msg_send_PATH_INTEGRAL(trans, dev, AC_ID,
-                               &pi_result.pi_vel.x, &pi_result.pi_vel.y, &st.pos_rel[0], &st.pos_rel[1]); //&st.pos_rel[0], &st.pos_rel[1]
+                               &pi_result.pi_vel.x, &pi_result.pi_vel.y, &wp.pos_E, &wp.pos_N);
   pthread_mutex_unlock(&pi_mutex);
 }
+
+static void relative_ac_telem_send(struct transport_tx *trans, struct link_device *dev)
+{
+  pthread_mutex_lock(&pi_mutex);
+  pprz_msg_send_RELATIVE_AC(trans, dev, AC_ID, &st.pos_rel[0], &st.pos_rel[1], &st.vel_rel[0], &st.vel_rel[1]);
+  pthread_mutex_unlock(&pi_mutex);
+}
+
 #endif
+
 
 
 static void *pi_calc_thread(void *arg);
@@ -74,7 +84,7 @@ void pi_init(void)
   set_state(&st);
   //init_virtual_leader(&st);
   set_trajectory(&trajectory);
-  //printf("INIT STATE N %f, E %f\n",st.pos_rel[0],st.pos_rel[1]);
+
   // Initialize the wp
   wp.pos_N = trajectory.wps[0].pos_N;
   wp.pos_E = trajectory.wps[0].pos_E;
@@ -83,13 +93,12 @@ void pi_init(void)
 
 #if PERIODIC_TELEMETRY
   register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_PATH_INTEGRAL, pi_telem_send);
+  register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_PATH_INTEGRAL, relative_ac_telem_send);
 #endif
 
 }
 
-/**
- * Starts the streaming of a all cameras
- */
+
 void start_thread(void)
 {
 
@@ -109,9 +118,6 @@ void start_thread(void)
 }
 
 
-/*
- * Stop a video thread for a camera
- */
 void stop_thread(void)
 {
 
@@ -175,29 +181,20 @@ void pi_run(void){
 
   pthread_mutex_lock(&pi_mutex);
 
-  // Update state information
-
   uint32_t now = get_sys_time_usec();
-  //printf("[BEFORE SENDING ABI] %d x %f, y %f, vel x %f vel y %f Controls x %f, y %f\n", now, st.pos[0], st.pos[1], st.vel[0], st.vel[1], pi_result.pi_vel.x, pi_result.pi_vel.y);
-  //simulate_virtual_leader(&st);
-  //printf("VIRTUAL N %f, E %f\n",st.pos_rel[0],st.pos_rel[1]);
-
-
-  // Update the stabilization loops on the current calculation
   if (pi_got_result){
     uint32_t now_ts = get_sys_time_usec();
     AbiSendMsgPATH_INTEGRAL(PATH_INTEGRAL_ID, now_ts,
-                            pi_result.pi_vel.x,
-                            pi_result.pi_vel.y);
+        pi_result.pi_vel.x,
+        pi_result.pi_vel.y);
     pi_got_result = false;
-    //printf("!!!Event detected: Got result!!!");
-    //printf("[SEND] %d x %f, y %f, vel x %f vel y %f Controls x %f, y %f\n", now_ts, st.pos[0], st.pos[1], st.vel[0], st.vel[1], pi_result.pi_vel.x, pi_result.pi_vel.y);
   }
-  set_state(&st);
 
-  uint32_t now2 = get_sys_time_usec();
-  //printf("[AFTER SENDING ABI] %d x %f, y %f, vel x %f vel y %f Controls x %f, y %f\n", now2, st.pos[0], st.pos[1], st.vel[0], st.vel[1], pi_result.pi_vel.x, pi_result.pi_vel.y);
+  // Update state information
+  set_state(&st);
+  //simulate_virtual_leader(&st);
   check_wp(&wp, &trajectory);
+
   pthread_mutex_unlock(&pi_mutex);
 
 }

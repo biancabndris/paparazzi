@@ -62,14 +62,12 @@ struct path_integral_t{
 
    gsl_rng *seed;
 
-   //float wps[2];
    float u_exp[10][2];
 };
 
 struct traj_t{
   struct pi_wp_t wps[4];
 };
-
 
 extern void pi_calc_init(struct path_integral_t *pi);
 bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct pi_wp_t *wp, struct pi_result_t *result);
@@ -86,16 +84,17 @@ static inline void set_state(struct pi_state_t *st){
   uint8_t follower_id = 135;
 
   struct EnuCoor_f *ac_pos = acInfoGetPositionEnu_f(follower_id);
-  printf("Rel pos X %f, Y %f\n",ac_pos->x,ac_pos->y);
+  printf("Rel pos X %f, Y %f\n",st->pos[0] + ac_pos->y,st->pos[1] + ac_pos->x);
   st->pos_rel[0] = ac_pos->y;
   st->pos_rel[1] = ac_pos->x;
-  st->pos_rel[2] = 2;
-  st->pos_rel[3] = 2;
+  st->pos_rel[2] = 0;//2
+  st->pos_rel[3] = 0;//2;
 
   struct EnuCoor_f *ac_vel = acInfoGetVelocityEnu_f(follower_id);
+  printf("Rel vel X %f, Y %f\n",ac_vel->y,ac_vel->x);
   st->vel_rel[0] = ac_vel->y;
   st->vel_rel[1] = ac_vel->x;
-  st->vel_rel[2] = 0.2;
+  st->vel_rel[2] = 0;//0.2;
   st->vel_rel[3] = 0;
 }
 
@@ -113,11 +112,10 @@ static inline void simulate_virtual_leader(struct pi_state_t *st){
   float dist2 = (0.5 - st->pos_rel[0])*(0.5 - st->pos_rel[0]) + (1.2 - st->pos_rel[1])*(1.2 - st->pos_rel[1]);
   float dist3 = (0.5 - st->pos_rel[0])*(0.5 - st->pos_rel[0]) + (-1.2 - st->pos_rel[1])*(-1.2 - st->pos_rel[1]);
   float dist4 = (-0.5 - st->pos_rel[0])*(-0.5 - st->pos_rel[0]) + (-1.2 - st->pos_rel[1])*(-1.2 - st->pos_rel[1]);
-  //printf("dist1 %f, dist2  %f, dist3 %f, dist4  %f \n",dist1, dist2, dist3, dist4);
+
   if(dist1 <= 0.0325f){
-    printf("yes");
-    st->vel_rel[0]= 0.2;//v2[0];
-    st->vel_rel[1] = 0;//v2[1];
+    st->vel_rel[0]= 0.2;
+    st->vel_rel[1] = 0;
   }
   else if(dist2 <= 0.0325f){
     st->vel_rel[0] = 0;
@@ -147,11 +145,8 @@ static inline void check_wp(struct pi_wp_t *wp, struct traj_t *trajectory){
 
   struct EnuCoor_i current_wp = {wp->pos_E/0.0039063, wp->pos_N/0.0039063, 1/0.0039063};
   float dist = get_dist2_to_point(&current_wp);
-  //printf("current wp N %f, E %f, distance %f\n", wp->pos_N, wp->pos_E, dist);
   if(dist < TRAJ_THR*TRAJ_THR){
     if(wp->wp_index < 3){
-      //printf("current wp N %f, E %f, distance %f\n", wp->pos_N, wp->pos_E, dist);
-      //printf("WP CHANGED");
       int index = wp->wp_index + 1;
       wp->pos_N = trajectory->wps[index].pos_N;
       wp->pos_E = trajectory->wps[index].pos_E;
@@ -159,8 +154,6 @@ static inline void check_wp(struct pi_wp_t *wp, struct traj_t *trajectory){
     }
     else{
       int index2 = 0;
-      //printf("current wp N %f, E %f, distance %f\n", wp->pos_N, wp->pos_E, dist);
-      //printf("WP RESET");
       wp->pos_N = trajectory->wps[index2].pos_N;
       wp->pos_E = trajectory->wps[index2].pos_E;
       wp->wp_index = index2;
@@ -171,20 +164,20 @@ static inline void check_wp(struct pi_wp_t *wp, struct traj_t *trajectory){
 
 static inline void set_trajectory(struct traj_t *trajectory){
 
-  trajectory->wps[0].pos_N = -1.5;//-2;
-  trajectory->wps[0].pos_E = -2;//-1;
+  trajectory->wps[0].pos_N = 0;//-1.5;//-2;
+  trajectory->wps[0].pos_E = 0;//-2;//-1;
   trajectory->wps[0].wp_index = 0;
 
-  trajectory->wps[1].pos_N = -1.5;//2;
-  trajectory->wps[1].pos_E = 2;//1.5;//-1;
+  trajectory->wps[1].pos_N = 0;//-1.5;//2;
+  trajectory->wps[1].pos_E = 0;//2;//1.5;//-1;
   trajectory->wps[1].wp_index = 1;
 
-  trajectory->wps[2].pos_N = 1.5;//0.5;//0;
-  trajectory->wps[2].pos_E = 2;//1.5;//0;
+  trajectory->wps[2].pos_N = 0;//1.5;//0.5;//0;
+  trajectory->wps[2].pos_E = 0;//2;//1.5;//0;
   trajectory->wps[2].wp_index = 2;
 
-  trajectory->wps[3].pos_N = 1.5;//0.5;//0;
-  trajectory->wps[3].pos_E = -2;//0;
+  trajectory->wps[3].pos_N = 0;//1.5;//0.5;//0;
+  trajectory->wps[3].pos_E = 0;//-2;//0;
   trajectory->wps[3].wp_index = 3;
 }
 

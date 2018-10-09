@@ -26,14 +26,7 @@
 #ifndef PATH_INTEGRAL_CONTROL_H
 #define PATH_INTEGRAL_CONTROL_H
 
-//#include <stdio.h>
 #include "optimal_control_calculator.h"
-//#include "navigation.h"
-//#include "../../subsystems/navigation/waypoints.h"
-//#include "generated/flight_plan.h"
-
-//#define TRAJ_LENGTH 1
-//static uint8_t trajectory[TRAJ_LENGTH] = {WP_p0};
 
 extern struct path_integral_t pi;
 
@@ -44,7 +37,5 @@ extern void pi_run(void);
 extern void start_thread(void);
 extern void stop_thread(void);
 
-//static inline void set_wps(void){
-//  printf("WP_p0 is %d",WP_p0);
-//}
+
 #endif
