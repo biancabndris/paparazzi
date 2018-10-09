@@ -1,0 +1,16 @@
+<!DOCTYPE module SYSTEM "module.dtd">
+
+<module name="actuator_modelling">
+  <doc>
+    <description>This module gives different velocity commands to the guided mode in different directions with the purpose of creating a model of the actuator response to these velocity commands. </description>
+  </doc>
+  <header>
+    <file name="actuator_modelling.h"/>
+  </header>
+  <init fun="init()"/>
+  <periodic fun="check_command()" freq="20" autorun="TRUE"/>
+  <makefile>
+    <file name="actuator_modelling.c"/>
+  </makefile>
+</module>
+
