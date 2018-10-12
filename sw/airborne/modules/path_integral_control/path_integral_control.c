@@ -54,7 +54,7 @@ static void pi_telem_send(struct transport_tx *trans, struct link_device *dev)
 {
   pthread_mutex_lock(&pi_mutex);
   pprz_msg_send_PATH_INTEGRAL(trans, dev, AC_ID,
-                               &pi_result.pi_vel.x, &pi_result.pi_vel.y, &wp.pos_E, &wp.pos_N);
+                               &pi_result.vel.x, &pi_result.vel.y,  &pi_result.min_cost, &wp.pos_E, &wp.pos_N);
   pthread_mutex_unlock(&pi_mutex);
 }
 
@@ -82,7 +82,6 @@ void pi_init(void)
 
   // Update state information
   set_state(&st);
-  //init_virtual_leader(&st);
   set_trajectory(&trajectory);
 
   // Initialize the wp
@@ -102,7 +101,7 @@ void pi_init(void)
 void start_thread(void)
 {
 
-  if (path_integral_thread != 0) {
+  if (path_integral_thread != 0){
     printf("[path_integral] Path integral thread already started!\n");
     return;
   }
@@ -131,7 +130,7 @@ static void *pi_calc_thread(void *arg __attribute__((unused)))
 {
   while(true){
 
-    // Copy the state
+    //Copy the state
     pthread_mutex_lock(&pi_mutex);
     struct pi_state_t temp_state;
     struct pi_wp_t temp_wp;
@@ -139,36 +138,28 @@ static void *pi_calc_thread(void *arg __attribute__((unused)))
     memcpy(&temp_wp, &wp, sizeof(struct pi_wp_t));
     pthread_mutex_unlock(&pi_mutex);
 
-    // Compute the optimal controls
+    //Compute the optimal controls
     struct pi_result_t temp_result;
-
     struct timespec start, finish;
     float elapsed;
+
     clock_gettime(CLOCK_MONOTONIC, &start);
 
     bool success = pi_calc_timestep(&pi, &temp_state, &temp_wp, &temp_result);
 
-    // Copy the result if finished
     pthread_mutex_lock(&pi_mutex);
     if(success){
       memcpy(&pi_result, &temp_result, sizeof(struct pi_result_t));
     }
     pi_got_result = success;
-
+    pthread_mutex_unlock(&pi_mutex);
 
     //printf("CONTROLS 0: %f , Controls 1: %f\n", temp_result.pi_vel.x, temp_result.pi_vel.y);
-
-    pthread_mutex_unlock(&pi_mutex);
 
     clock_gettime(CLOCK_MONOTONIC, &finish);
     elapsed = (finish.tv_sec - start.tv_sec);
     elapsed += (finish.tv_nsec - start.tv_nsec) / 1000000000.0;
 
-    //printf("------ ELAPSED TIME: %f\n----------",elapsed);
-    //Sleep to avoid having the optimal controls computed at a higher frequency
-/*    if(elapsed < 1/pi.freq){
-      sleep(1/pi.freq - elapsed);
-    }*/
       }
   return 0;
 }
@@ -184,14 +175,12 @@ void pi_run(void){
   if (pi_got_result){
     uint32_t now_ts = get_sys_time_usec();
     AbiSendMsgPATH_INTEGRAL(PATH_INTEGRAL_ID, now_ts,
-        pi_result.pi_vel.x,
-        pi_result.pi_vel.y);
+        pi_result.vel.x,
+        pi_result.vel.y);
     pi_got_result = false;
   }
 
-  // Update state information
   set_state(&st);
-  //simulate_virtual_leader(&st);
   check_wp(&wp, &trajectory);
 
   pthread_mutex_unlock(&pi_mutex);

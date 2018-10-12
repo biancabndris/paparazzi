@@ -54,13 +54,13 @@
 #define PI_COLLISION_DISTANCE 1//0.25//2.25
 #endif
 #ifndef PI_COHESION_DISTANCE
-#define PI_COHESION_DISTANCE 2////6.25
+#define PI_COHESION_DISTANCE 4////6.25
 #endif
 #ifndef PI_COLLISION_PENALTY
-#define PI_COLLISION_PENALTY 10//40//10
+#define PI_COLLISION_PENALTY 11//40//10
 #endif
 #ifndef PI_COHESION_PENALTY
-#define PI_COHESION_PENALTY 0.1//5
+#define PI_COHESION_PENALTY 1.2//0.1//5
 #endif
 #ifndef PI_TARGET_PENALTY
 #define PI_TARGET_PENALTY 50
@@ -78,10 +78,16 @@
 #define PI_PARALLEL_THR 0.3
 #endif
 #ifndef PI_UNITS
-#define PI_UNITS 3
+#define PI_UNITS 2
 #endif
 #ifndef PI_DIM_U
 #define PI_DIM_U 2
+#endif
+#ifndef CZ_LIMIT
+#define CZ_LIMIT 2.8
+#endif
+#ifndef PI_OUTSIDECZ_PENALTY
+#define PI_OUTSIDECZ_PENALTY 5
 #endif
 
 
@@ -107,6 +113,7 @@ void pi_calc_init(struct path_integral_t *pi){
      pi->PARALLEL_PENALTY   = PI_PARALLEL_PENALTY;
      pi->MAX_SPEED          = PI_MAX_SPEED;
      pi->PARALLEL_THR       = PI_PARALLEL_THR;
+     pi->OUTSIDECZ_PENALTY   = PI_OUTSIDECZ_PENALTY;
 
      pi->units              = PI_UNITS;
      pi->dimU               = PI_DIM_U;
@@ -199,7 +206,7 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
         internal_state.vel[1]  = -1*pi->MAX_SPEED;
       }
 
-      float rise_time = 4;
+      float rise_time = 5;
       float k = 1;
       float ratio = pi->dh/(rise_time+pi->dh);
 
@@ -227,29 +234,62 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
           samples_cost[n] += pi->HEADING_PENALTY * pi->dh * cross_product_3;
         }
 
-/*        for(int a=0; a < pi->units-1; a++){
+        for(int a=0; a < pi->units-1; a++){
           float dist_unit = (internal_state.pos[0]-  internal_state.pos_rel[0+2*a]) * (internal_state.pos[0]- internal_state.pos_rel[0+2*a]) + (internal_state.pos[1]- internal_state.pos_rel[1+2*a]) * (internal_state.pos[1]- internal_state.pos_rel[1+2*a]);
 
           if(dist_unit > pi->COLLISION_DISTANCE ){}
           else{ samples_cost[n] += exp(pi->COLLISION_PENALTY *(pi->COLLISION_DISTANCE - dist_unit));}
-          //printf("collision cost %f\n", samples_cost[n]);
-        }*/
+        }
+
+        if(internal_state.pos[0] > CZ_LIMIT){
+          float outside = internal_state.pos[0] - CZ_LIMIT;
+        samples_cost[n] += exp( pi->OUTSIDECZ_PENALTY* outside);
+        }
+        if(internal_state.pos[0] < -CZ_LIMIT){
+        float outside = internal_state.pos[0] + CZ_LIMIT;
+        samples_cost[n] += exp( pi->OUTSIDECZ_PENALTY* outside);
+        }
+        if(internal_state.pos[1] > CZ_LIMIT){
+          float outside = internal_state.pos[1] - CZ_LIMIT;
+          samples_cost[n] += exp( pi->OUTSIDECZ_PENALTY* outside);
+        }
+       if(internal_state.pos[1] < -CZ_LIMIT){
+          float outside = internal_state.pos[1] + CZ_LIMIT;
+         samples_cost[n] += exp( pi->OUTSIDECZ_PENALTY* outside);
+        }
       }
       else{
         float dist_leader = (internal_state.pos[0]- internal_state.pos_rel[0]) * (internal_state.pos[0]- internal_state.pos_rel[0]) + (internal_state.pos[1]- internal_state.pos_rel[1]) * (internal_state.pos[1]- internal_state.pos_rel[1]);
         if(dist_leader < pi->COHESION_DISTANCE ){}
         else{samples_cost[n] += exp(pi->COHESION_PENALTY *(dist_leader - pi->COHESION_DISTANCE));}
 
-/*        for(int a=0; a < pi->units-1; a++){
+        for(int a=0; a < pi->units-1; a++){
           float dist_unit = (internal_state.pos[0]-  internal_state.pos_rel[0+2*a]) * (internal_state.pos[0]- internal_state.pos_rel[0+2*a]) + (internal_state.pos[1]- internal_state.pos_rel[0+2*a]) * (internal_state.pos[1]- internal_state.pos_rel[0+2*a]);
           if(dist_unit > pi->COLLISION_DISTANCE ){}
           else{ samples_cost[n] += exp(pi->COLLISION_PENALTY *(pi->COLLISION_DISTANCE - dist_unit));}
-
+/*
           float cross_product_3 = fabs(internal_state.pos[0] * internal_state.pos_rel[1+2*a] - internal_state.pos[1] * internal_state.pos_rel[0+2*a]);
           if(cross_product_3 > pi->PARALLEL_THR){}
           else{samples_cost[n] += exp(pi->PARALLEL_PENALTY *(pi->PARALLEL_THR - cross_product_3));}
+*/
+        }
 
-        }*/
+        if(internal_state.pos[0] > CZ_LIMIT){
+          float outside = internal_state.pos[0] - CZ_LIMIT;
+        samples_cost[n] += exp( pi->OUTSIDECZ_PENALTY* outside);
+        }
+        if(internal_state.pos[0] < -CZ_LIMIT){
+        float outside = internal_state.pos[0] + CZ_LIMIT;
+        samples_cost[n] += exp( pi->OUTSIDECZ_PENALTY* outside);
+        }
+        if(internal_state.pos[1] > CZ_LIMIT){
+          float outside = internal_state.pos[1] - CZ_LIMIT;
+          samples_cost[n] += exp( pi->OUTSIDECZ_PENALTY* outside);
+        }
+       if(internal_state.pos[1] < -CZ_LIMIT){
+          float outside = internal_state.pos[1] + CZ_LIMIT;
+         samples_cost[n] += exp( pi->OUTSIDECZ_PENALTY* outside);
+        }
       }
     }
 
@@ -257,10 +297,9 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
 
   }
 
-  //printf("Min cost is:%f\n",min_cost);
+  result->min_cost = min_cost;
 
-
-  // Compute weight of all samples N
+  //Compute weight of all samples N
   float w[pi->N];
   float w_sum = 0;
   for (int n=0; n < pi->N; ){
@@ -299,40 +338,37 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
   float ned_vel_n =  st->vel[0] + (u_roll[0][0] + internal_controls[0][0])*(dt);
   float ned_vel_e =  st->vel[1] + (u_roll[0][1] + internal_controls[0][1])*(dt);
 
-  //Convert from NED to body coordinates
-  result->pi_vel.x = cosf(st->psi) * ned_vel_n  + sinf(st->psi) * ned_vel_e;
-  result->pi_vel.y = -sinf(st->psi) * ned_vel_n  + cosf(st->psi) * ned_vel_e;
+  result->vel.x = ned_vel_n;
+  result->vel.y = ned_vel_e;
 
-  if(!isnan(result->pi_vel.x) && !isnan(result->pi_vel.y)){
+  if(!isnan(result->vel.x) && !isnan(result->vel.y)){
 
-    if(result->pi_vel.x > pi->MAX_SPEED){
-      result->pi_vel.x  = pi->MAX_SPEED;
+    if(result->vel.x > pi->MAX_SPEED){
+      result->vel.x  = pi->MAX_SPEED;
     }
 
-    if(result->pi_vel.y > pi->MAX_SPEED){
-      result->pi_vel.y  = pi->MAX_SPEED;
+    if(result->vel.y > pi->MAX_SPEED){
+      result->vel.y  = pi->MAX_SPEED;
     }
 
-    if(result->pi_vel.x < -1*pi->MAX_SPEED){
-      result->pi_vel.x  = -1*pi->MAX_SPEED;
+    if(result->vel.x < -1*pi->MAX_SPEED){
+      result->vel.x  = -1*pi->MAX_SPEED;
     }
 
-    if(result->pi_vel.y < -1*pi->MAX_SPEED){
-      result->pi_vel.y  = -1*pi->MAX_SPEED;
+    if(result->vel.y < -1*pi->MAX_SPEED){
+      result->vel.y  = -1*pi->MAX_SPEED;
     }
 
-
-    // Save controls for importance sampling
+    //Save controls for importance sampling
     for(int h = 0; h < pi->iH; h++){
       pi->u_exp[h][0] = u_roll[h][0] + internal_controls[h][0];
       pi->u_exp[h][1] = u_roll[h][1] + internal_controls[h][1];
     }
 
-
-    //printf("CONTROL communicated control after sampling %f, %f\n",pi->u_exp[pi->iH-1][0], internal_controls[pi->iH-1][0] );
     success = true;
   }
 
   return success;
 
 }
+

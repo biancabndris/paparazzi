@@ -82,8 +82,10 @@ NOTE: A velocity forcefield in the horizontal plane applied here, so if an obsta
 -->
 
     <block name="Go Forward">
+      <set var="desired_heading" value="stateGetNedToBodyEulers_f()->psi"/>
       <while cond="LessThan(block_time,120)"><!--LessThan(block_time,5)"/-->
-        <call_once fun="autopilot_guided_update(GUIDED_FLAG_XY_VEL_BODY,opt_vel_x, opt_vel_y,-nominal_alt,desired_heading)"/>
+	<call_once fun="guidance_h_set_guided_vel(opt_vel_x,opt_vel_y)"/>
+        <!--call_once fun="autopilot_guided_update(GUIDED_FLAG_XY_VEL_BODY,opt_vel_x, opt_vel_y,-nominal_alt,0)"/-->
       </while>
       <deroute block="Hover"/>
     </block>

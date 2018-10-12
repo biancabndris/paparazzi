@@ -31,7 +31,8 @@
 
 // The result of the optimal control calculation given as x and y velocities
 struct pi_result_t{
-  struct FloatVect2 pi_vel;
+  struct FloatVect2 vel;
+  float  min_cost;
 };
 
 struct pi_state_t{

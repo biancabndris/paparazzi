@@ -7,7 +7,7 @@
 
   <firmware name="rotorcraft">
     <target name="ap" board="bebop">
-      <configure name="MODEM_HOST"  value="192.168.1.136"/>
+      <configure name="MODEM_HOST"  value="192.168.1.137"/>
       <configure name="HOST"  value="192.168.1.$(AC_ID)"/>
     </target>
 
@@ -26,10 +26,12 @@
     <module name="imu" type="bebop"/>
     <module name="gps" type="datalink"/>
     <module name="stabilization" type="indi_simple"/>
-    <module name="stabilization" type="rate_indi"/>
+    <!--module name="stabilization" type="rate_indi"/=-->
     <module name="ahrs" type="int_cmpl_quat">
+      <configure name="USE_GPS" value="1"/>
       <configure name="USE_MAGNETOMETER" value="0"/>
       <define name="AHRS_USE_GPS_HEADING" value="1"/>
+      <define name="HEADING_UPDATE_GPS_MIN_SPEED" value="0"/>
     </module>
     <module name="ins" type="extended"/>
   </firmware>
@@ -91,6 +93,8 @@
     <define name="MAG_X_NEUTRAL" value="0"/>
     <define name="MAG_Y_NEUTRAL" value="0"/>
     <define name="MAG_Z_NEUTRAL" value="0"/>
+
+  
   </section>
 
   <!-- local magnetic field -->
@@ -126,6 +130,7 @@
   </section>
 
   <section name="ATTITUDE_REFERENCE" prefix="STABILIZATION_ATTITUDE_">
+
     <!-- attitude reference generation model -->
     <define name="REF_OMEGA_P" value="450" unit="deg/s"/>
     <define name="REF_ZETA_P" value="0.9"/>
@@ -180,7 +185,7 @@
     <define name="HOVER_KD" value="82"/>
     <define name="HOVER_KI" value="20"/>
     <define name="NOMINAL_HOVER_THROTTLE" value="0.68"/>
-    <define name="ADAPT_THROTTLE_ENABLED" value="TRUE"/>
+    <define name="ADAPT_THROTTLE_ENABLED" value="FALSE"/>
 
     <define name="ADAPT_INITIAL_HOVER_THROTTLE" value="0.68" />
     <define name="ADAPT_MIN_HOVER_THROTTLE" value="0.55" />

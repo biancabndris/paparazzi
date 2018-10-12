@@ -30,7 +30,6 @@
 
 extern struct path_integral_t pi;
 
-// Module functions
 extern void pi_init(void);
 extern void pi_run(void);
 
