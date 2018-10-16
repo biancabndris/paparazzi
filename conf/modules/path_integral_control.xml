@@ -35,7 +35,7 @@
     <file name="path_integral_control.h"/>
   </header>
   <init fun="pi_init()"/>
-  <periodic fun="pi_run()" freq="20" start="start_thread()" stop ="stop_thread()" autorun="TRUE"/>
+  <periodic fun="pi_run()" freq="15" start="start_thread()" stop ="stop_thread()" autorun="TRUE"/>
   <makefile target="ap">
     <file name="path_integral_control.c"/>
     <file name="optimal_control_calculator.c"/>

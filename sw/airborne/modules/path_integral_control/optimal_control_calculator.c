@@ -30,7 +30,7 @@
 #include <stdio.h>
 
 #ifndef PI_FREQ
-#define PI_FREQ 20
+#define PI_FREQ 15
 #endif
 #ifndef PI_LEADER
 #define PI_LEADER 1
@@ -153,6 +153,7 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
   // Shift controls with dt
   float shift = (pi->dh - dt)/pi->dh;
   float shift2 = dt/(pi->dh - dt);
+  //size_t u_exp_size = sizeof(u_exp[pi->iH][pi->dimU])/sizeof(float);
   for (int h=0; h < pi->iH-1; h++){
     u_roll[h][0] = pi->u_exp[h][0]*shift;
     u_roll[h][1] = pi->u_exp[h][1]*shift;
