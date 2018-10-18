@@ -32,7 +32,7 @@
 #include "math/pprz_geodetic_int.h"
 #include "math/pprz_geodetic_float.h"
 #include "subsystems/gps.h"
-#include "stdio.h"
+
 
 #ifndef NB_ACS_ID
 #define NB_ACS_ID 256
@@ -447,10 +447,8 @@ static inline uint8_t * acInfoGetAcIds(void)
 {
   uint8_t * ac_ids;
   ac_ids = malloc(sizeof(uint8_t)*ti_acs_idx);
-  printf("NUm Ac %d\n", ti_acs_idx);
   for(uint8_t i=0; i< ti_acs_idx; i++){
     ac_ids[i] = ti_acs[i].ac_id;
-    printf("Ac %d\n", ac_ids[i]);
   }
   return ac_ids;
 }

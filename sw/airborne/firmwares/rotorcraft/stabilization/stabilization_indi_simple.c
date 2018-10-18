@@ -39,7 +39,7 @@
 #include "generated/airframe.h"
 #include "paparazzi.h"
 #include "subsystems/radio_control.h"
-
+#include "stdio.h"
 #if !defined(STABILIZATION_INDI_ACT_DYN_P) && !defined(STABILIZATION_INDI_ACT_DYN_Q) && !defined(STABILIZATION_INDI_ACT_DYN_R)
 #error You have to define the first order time constant of the actuator dynamics!
 #endif
@@ -140,7 +140,9 @@ static void send_att_indi(struct transport_tx *trans, struct link_device *dev)
 
 static void send_ahrs_ref_quat(struct transport_tx *trans, struct link_device *dev)
 {
+  struct Int32Quat att_err;
   struct Int32Quat *quat = stateGetNedToBodyQuat_i();
+  int32_quat_inv_comp(&att_err, quat, &stab_att_sp_quat);
   pprz_msg_send_AHRS_REF_QUAT(trans, dev, AC_ID,
                               &stab_att_sp_quat.qi,
                               &stab_att_sp_quat.qx,
@@ -149,7 +151,11 @@ static void send_ahrs_ref_quat(struct transport_tx *trans, struct link_device *d
                               &(quat->qi),
                               &(quat->qx),
                               &(quat->qy),
-                              &(quat->qz));
+                              &(quat->qz),
+                              &att_err.qi,
+                              &att_err.qx,
+                              &att_err.qy,
+                              &att_err.qz);
 }
 #endif
 
@@ -393,7 +399,11 @@ void stabilization_indi_run(bool in_flight __attribute__((unused)), bool rate_co
   /* attitude error                          */
   struct Int32Quat att_err;
   struct Int32Quat *att_quat = stateGetNedToBodyQuat_i();
+
   int32_quat_inv_comp(&att_err, att_quat, &stab_att_sp_quat);
+  //printf("Measured quat i %d, x %d, y %d, z %d\n",att_quat->qi, att_quat->qx,att_quat->qy,att_quat->qz );
+  //printf("Setpoint quat i %d, x %d, y %d, z %d\n",stab_att_sp_quat.qi, stab_att_sp_quat.qx,stab_att_sp_quat.qy,stab_att_sp_quat.qz );
+  //printf("Error quat i %d, x %d, y %d, z %d\n",att_err.qi, att_err.qx,att_err.qy,att_err.qz );
   /* wrap it in the shortest direction       */
   int32_quat_wrap_shortest(&att_err);
   int32_quat_normalize(&att_err);

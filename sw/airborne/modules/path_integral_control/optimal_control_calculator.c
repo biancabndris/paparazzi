@@ -60,7 +60,7 @@
 #define PI_COLLISION_PENALTY 11//40//10
 #endif
 #ifndef PI_COHESION_PENALTY
-#define PI_COHESION_PENALTY 1.2//0.1//5
+#define PI_COHESION_PENALTY 1//0.1//5
 #endif
 #ifndef PI_TARGET_PENALTY
 #define PI_TARGET_PENALTY 50
@@ -153,7 +153,7 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
   // Shift controls with dt
   float shift = (pi->dh - dt)/pi->dh;
   float shift2 = dt/(pi->dh - dt);
-  //size_t u_exp_size = sizeof(u_exp[pi->iH][pi->dimU])/sizeof(float);
+
   for (int h=0; h < pi->iH-1; h++){
     u_roll[h][0] = pi->u_exp[h][0]*shift;
     u_roll[h][1] = pi->u_exp[h][1]*shift;
@@ -207,7 +207,7 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
         internal_state.vel[1]  = -1*pi->MAX_SPEED;
       }
 
-      float rise_time = 5;
+      float rise_time = 4;
       float k = 1;
       float ratio = pi->dh/(rise_time+pi->dh);
 
@@ -268,6 +268,7 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
           float dist_unit = (internal_state.pos[0]-  internal_state.pos_rel[0+2*a]) * (internal_state.pos[0]- internal_state.pos_rel[0+2*a]) + (internal_state.pos[1]- internal_state.pos_rel[0+2*a]) * (internal_state.pos[1]- internal_state.pos_rel[0+2*a]);
           if(dist_unit > pi->COLLISION_DISTANCE ){}
           else{ samples_cost[n] += exp(pi->COLLISION_PENALTY *(pi->COLLISION_DISTANCE - dist_unit));}
+          //printf("Diff dist leader %f, diff dist unit %f \n", dist_leader - pi->COHESION_DISTANCE, pi->COLLISION_DISTANCE - dist_unit );
 /*
           float cross_product_3 = fabs(internal_state.pos[0] * internal_state.pos_rel[1+2*a] - internal_state.pos[1] * internal_state.pos_rel[0+2*a]);
           if(cross_product_3 > pi->PARALLEL_THR){}

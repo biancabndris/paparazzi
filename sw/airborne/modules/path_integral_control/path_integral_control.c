@@ -85,9 +85,12 @@ void pi_init(void)
   set_trajectory(&trajectory);
 
   // Initialize the wp
-  wp.pos_N = trajectory.wps[0].pos_N;
-  wp.pos_E = trajectory.wps[0].pos_E;
-  wp.wp_index = trajectory.wps[0].wp_index;
+  if(pi.leader){
+    wp.pos_N = trajectory.wps[0].pos_N;
+    wp.pos_E = trajectory.wps[0].pos_E;
+    wp.wp_index = trajectory.wps[0].wp_index;
+  }
+
 
 
 #if PERIODIC_TELEMETRY
@@ -159,7 +162,7 @@ static void *pi_calc_thread(void *arg __attribute__((unused)))
     clock_gettime(CLOCK_MONOTONIC, &finish);
     elapsed = (finish.tv_sec - start.tv_sec);
     elapsed += (finish.tv_nsec - start.tv_nsec) / 1000000000.0;
-    printf("TIME %f\n", elapsed);
+    //printf("TIME %f\n", elapsed);
       }
   return 0;
 }
@@ -181,7 +184,10 @@ void pi_run(void){
   }
 
   set_state(&st);
-  check_wp(&wp, &trajectory);
+  if(pi.leader){
+    check_wp(&wp, &trajectory);
+  }
+
 
   pthread_mutex_unlock(&pi_mutex);
 
