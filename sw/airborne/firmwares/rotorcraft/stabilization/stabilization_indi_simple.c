@@ -151,11 +151,11 @@ static void send_ahrs_ref_quat(struct transport_tx *trans, struct link_device *d
                               &(quat->qi),
                               &(quat->qx),
                               &(quat->qy),
-                              &(quat->qz),
-                              &att_err.qi,
-                              &att_err.qx,
-                              &att_err.qy,
-                              &att_err.qz);
+                              &(quat->qz));
+                              //&att_err.qi,
+                              //&att_err.qx,
+                              //&att_err.qy,
+                              //&att_err.qz);
 }
 #endif
 

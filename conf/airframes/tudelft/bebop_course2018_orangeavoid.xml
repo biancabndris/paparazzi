@@ -6,7 +6,10 @@
 
 
   <firmware name="rotorcraft">
-    <target name="ap" board="bebop"/>
+        <target name="ap" board="bebop">
+  	  <configure name="HOST" value="192.168.1.$(AC_ID)" />
+  	  <configure name="MODEM_HOST" value="192.168.1.137" />
+ 	</target>
     <target name="nps" board="pc">
       <module name="fdm" type="gazebo"/>
     </target>
@@ -57,7 +60,7 @@
     <module name="cv_colorfilter">
       <define name="COLORFILTER_CAMERA" value="front_camera" />
     </module>
-    <module name="orange_avoider" />
+    <!--module name="orange_avoider" /-->
     <module name="video_rtp_stream">
       <define name="VIEWVIDEO_CAMERA" value="front_camera" />
       <define name="VIEWVIDEO_FPS" value="18" />
@@ -246,12 +249,12 @@
   <include href="conf/simulator/gazebo/airframes/bebop.xml"/>
 
   <section name="AUTOPILOT">
-    <define name="MODE_STARTUP" value="AP_MODE_NAV"/>
+    <define name="MODE_STARTUP" value="AP_MODE_GUIDED"/>
     <define name="MODE_MANUAL" value="AP_MODE_ATTITUDE_DIRECT"/>
     <define name="MODE_AUTO1" value="AP_MODE_ATTITUDE_Z_HOLD"/>
-    <define name="MODE_AUTO2" value="AP_MODE_NAV"/>
+    <define name="MODE_AUTO2" value="AP_MODE_GUIDED"/>
 
-    <define name="NO_RC_THRUST_LIMIT" value="TRUE"/>
+    <define name="NO_RC_THRUST_LIMIT" value="FALSE"/>
   </section>
 
   <section name="BAT">
