@@ -688,7 +688,7 @@ void guidance_h_guided_run(bool in_flight)
   /* compute x,y earth commands */
   guidance_h_traj_run(in_flight);
   /* set final attitude setpoint */
-  guidance_h.sp.heading = 1.0;
+  //guidance_h.sp.heading = 0.0;
   int32_t heading_sp_i = ANGLE_BFP_OF_REAL(guidance_h.sp.heading);
   stabilization_attitude_set_earth_cmd_i(&guidance_h_cmd_earth, heading_sp_i);
 #endif
