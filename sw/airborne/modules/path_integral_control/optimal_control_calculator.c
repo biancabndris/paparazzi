@@ -145,7 +145,7 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
   float stdv = sqrt(pi->var);
   float samples_cost[pi->N];
   struct pi_state_t internal_state;
-  float min_cost = 20000;
+  float min_cost = 1000000;
   float inv_lambda = 1/(pi->lambda);
   float dt = 1/pi->freq;
   float half_dh = pi->dh*0.5;
@@ -172,12 +172,10 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
     for (int i = 0; i< 2; i++){
       internal_state.pos[i] = st->pos[i];
       internal_state.vel[i] = st->vel[i];
-      for (int o = 0; o<2; o++){
-        internal_state.pos_rel[o+2*i] = st->pos_rel[o+2*i];
-        internal_state.vel_rel[o+2*i] = st->vel_rel[o+2*i];
-      }
+      internal_state.pos_rel[i] = st->pos_rel[i];
+      internal_state.vel_rel[i] = st->vel_rel[i];
     }
-
+    //printf("State %f, %f\n",internal_state.pos[0], internal_state.vel[0]);
     float applied_vel_n = internal_state.vel[0];
     float applied_vel_e = internal_state.vel[1];
 
@@ -208,39 +206,44 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
       }
 
       float rise_time = 4;
-      float k = 1;
       float ratio = pi->dh/(rise_time+pi->dh);
 
-      applied_vel_n = (1-ratio)*applied_vel_n + ratio*k*internal_state.vel[0];
-      applied_vel_e = (1-ratio)*applied_vel_e + ratio*k*internal_state.vel[1];
+      applied_vel_n = (1-ratio)*applied_vel_n + ratio*internal_state.vel[0];
+      applied_vel_e = (1-ratio)*applied_vel_e + ratio*internal_state.vel[1];
 
       internal_state.pos[0] += applied_vel_n*pi->dh;
       internal_state.pos[1] += applied_vel_e*pi->dh;
 
       //Propagate follower units
-      for(int a=0; a < pi->units-1; a++) {
-        internal_state.pos_rel[0+2*a] += internal_state.vel_rel[0+2*a] * pi->dh;
-        internal_state.pos_rel[1+2*a] += internal_state.vel_rel[1+2*a] * pi->dh;
-      }
-
+      //for(int a=0; a < pi->units; a++) {
+        internal_state.pos_rel[0] += internal_state.vel_rel[0] * pi->dh;
+        internal_state.pos_rel[1] += internal_state.vel_rel[1] * pi->dh;
+      //}
+      // Control Cost
       samples_cost[n] += pi->R * fabs(u_roll[h][0]*u_roll[h][0]*half_dh + u_roll[h][0]*noise[n][h][0] + u_roll[h][1]*u_roll[h][1]*half_dh + u_roll[h][1]*noise[n][h][1]);
 
       if(pi->leader){
+        // Target distance cost
         float dist_target = (internal_state.pos[0]- wp->pos_N) * (internal_state.pos[0]- wp->pos_N) + (internal_state.pos[1]- wp->pos_E ) * (internal_state.pos[1]- wp->pos_E );
+        //samples_cost[n] += pi->TARGET_PENALTY* pi->dh * dist_target;
+        samples_cost[n] += exp((dist_target - 4));
 
-        samples_cost[n] += pi->TARGET_PENALTY* pi->dh * dist_target;
+        //if(dist_target > 0.5f){
+        //  float cross_product_3 = fabs(applied_vel_n * wp->pos_E - applied_vel_e* wp->pos_N);
+        //  samples_cost[n] += pi->HEADING_PENALTY * pi->dh * cross_product_3;
+        //}
 
-        if(dist_target > 0.5f){
-          float cross_product_3 = fabs(applied_vel_n * wp->pos_E - applied_vel_e* wp->pos_N);
-          samples_cost[n] += pi->HEADING_PENALTY * pi->dh * cross_product_3;
-        }
-
-        for(int a=0; a < pi->units-1; a++){
-          float dist_unit = (internal_state.pos[0]-  internal_state.pos_rel[0+2*a]) * (internal_state.pos[0]- internal_state.pos_rel[0+2*a]) + (internal_state.pos[1]- internal_state.pos_rel[1+2*a]) * (internal_state.pos[1]- internal_state.pos_rel[1+2*a]);
-
+        //for(int a=0; a < pi->units-1; a++){
+          float dist_unit = (internal_state.pos[0]-  internal_state.pos_rel[0]) * (internal_state.pos[0]- internal_state.pos_rel[0]) + (internal_state.pos[1]- internal_state.pos_rel[1]) * (internal_state.pos[1]- internal_state.pos_rel[1]);
           if(dist_unit > pi->COLLISION_DISTANCE ){}
           else{ samples_cost[n] += exp(pi->COLLISION_PENALTY *(pi->COLLISION_DISTANCE - dist_unit));}
-        }
+        //}
+         float velocity_vec = applied_vel_n * applied_vel_n + applied_vel_e * applied_vel_e;
+         if(velocity_vec >0.3){}
+         else{
+           samples_cost[n] += 100*(0.3 - velocity_vec)*(0.3 - velocity_vec);
+         }
+
 
         if(internal_state.pos[0] > CZ_LIMIT){
           float outside = internal_state.pos[0] - CZ_LIMIT;
@@ -260,21 +263,33 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
         }
       }
       else{
-        float dist_leader = (internal_state.pos[0]- internal_state.pos_rel[0]) * (internal_state.pos[0]- internal_state.pos_rel[0]) + (internal_state.pos[1]- internal_state.pos_rel[1]) * (internal_state.pos[1]- internal_state.pos_rel[1]);
-        if(dist_leader < pi->COHESION_DISTANCE ){}
-        else{samples_cost[n] += exp(pi->COHESION_PENALTY *(dist_leader - pi->COHESION_DISTANCE));}
 
-        for(int a=0; a < pi->units-1; a++){
-          float dist_unit = (internal_state.pos[0]-  internal_state.pos_rel[0+2*a]) * (internal_state.pos[0]- internal_state.pos_rel[0+2*a]) + (internal_state.pos[1]- internal_state.pos_rel[0+2*a]) * (internal_state.pos[1]- internal_state.pos_rel[0+2*a]);
-          if(dist_unit > pi->COLLISION_DISTANCE ){}
-          else{ samples_cost[n] += exp(pi->COLLISION_PENALTY *(pi->COLLISION_DISTANCE - dist_unit));}
+        float dist_target = (internal_state.pos[0]- wp->pos_N) * (internal_state.pos[0]- wp->pos_N) + (internal_state.pos[1]- wp->pos_E ) * (internal_state.pos[1]- wp->pos_E );
+        //samples_cost[n] += pi->TARGET_PENALTY* pi->dh * dist_target;
+        samples_cost[n] += exp((dist_target - 4));
+
+        float dist_leader = (internal_state.pos[0]- internal_state.pos_rel[0]) * (internal_state.pos[0]- internal_state.pos_rel[0]) + (internal_state.pos[1]- internal_state.pos_rel[1]) * (internal_state.pos[1]- internal_state.pos_rel[1]);
+        //if(dist_leader < pi->COHESION_DISTANCE ){}
+        //else{samples_cost[n] += exp(pi->COHESION_PENALTY *(dist_leader - pi->COHESION_DISTANCE));}
+
+        //for(int a=0; a < pi->units-1; a++){
+          //float dist_unit = (internal_state.pos[0]-  internal_state.pos_rel[0+2*a]) * (internal_state.pos[0]- internal_state.pos_rel[0+2*a]) + (internal_state.pos[1]- internal_state.pos_rel[0+2*a]) * (internal_state.pos[1]- internal_state.pos_rel[0+2*a]);
+          if(dist_leader > pi->COLLISION_DISTANCE ){}
+          else{ samples_cost[n] += exp(pi->COLLISION_PENALTY *(pi->COLLISION_DISTANCE - dist_leader));}
           //printf("Diff dist leader %f, diff dist unit %f \n", dist_leader - pi->COHESION_DISTANCE, pi->COLLISION_DISTANCE - dist_unit );
 /*
           float cross_product_3 = fabs(internal_state.pos[0] * internal_state.pos_rel[1+2*a] - internal_state.pos[1] * internal_state.pos_rel[0+2*a]);
           if(cross_product_3 > pi->PARALLEL_THR){}
           else{samples_cost[n] += exp(pi->PARALLEL_PENALTY *(pi->PARALLEL_THR - cross_product_3));}
 */
+        //}
+
+        float velocity_vec = applied_vel_n * applied_vel_n + applied_vel_e * applied_vel_e;
+        if(velocity_vec >0.3){}
+        else{
+          samples_cost[n] += 100*(0.3 - velocity_vec)*(0.3 - velocity_vec);
         }
+
 
         if(internal_state.pos[0] > CZ_LIMIT){
           float outside = internal_state.pos[0] - CZ_LIMIT;
@@ -300,7 +315,7 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
   }
 
   result->min_cost = min_cost;
-
+  printf("Min cost %f\n", min_cost);
   //Compute weight of all samples N
   float w[pi->N];
   float w_sum = 0;

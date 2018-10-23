@@ -85,17 +85,17 @@ void pi_init(void)
   set_trajectory(&trajectory);
 
   // Initialize the wp
-  if(pi.leader){
-    wp.pos_N = trajectory.wps[0].pos_N;
-    wp.pos_E = trajectory.wps[0].pos_E;
-    wp.wp_index = trajectory.wps[0].wp_index;
-  }
+
+  wp.pos_N = trajectory.wps[0].pos_N;
+  wp.pos_E = trajectory.wps[0].pos_E;
+  wp.wp_index = trajectory.wps[0].wp_index;
+
 
 
 
 #if PERIODIC_TELEMETRY
   register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_PATH_INTEGRAL, pi_telem_send);
-  register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_PATH_INTEGRAL, relative_ac_telem_send);
+  register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_RELATIVE_AC, relative_ac_telem_send);
 #endif
 
 }
@@ -157,7 +157,7 @@ static void *pi_calc_thread(void *arg __attribute__((unused)))
     pi_got_result = success;
     pthread_mutex_unlock(&pi_mutex);
 
-    //printf("CONTROLS 0: %f , Controls 1: %f\n", temp_result.pi_vel.x, temp_result.pi_vel.y);
+    printf("CONTROLS 0: %f , Controls 1: %f\n", temp_result.vel.x, temp_result.vel.y);
 
     clock_gettime(CLOCK_MONOTONIC, &finish);
     elapsed = (finish.tv_sec - start.tv_sec);
@@ -184,12 +184,20 @@ void pi_run(void){
   }
 
   set_state(&st);
-  if(pi.leader){
-    check_wp(&wp, &trajectory);
-  }
+  check_wp(&wp, &trajectory);
+
 
 
   pthread_mutex_unlock(&pi_mutex);
 
 }
 
+
+/*bool pi_follow_leader(void){
+  bool temp = true;
+  temp &= guidance_v_set_guided_z(-1.0);
+  pthread_mutex_lock(&pi_mutex);
+  temp &= guidance_h_set_guided_vel(pi_result.vel.x,pi_result.vel.y);
+  pthread_mutex_unlock(&pi_mutex);
+  return !temp;
+}*/

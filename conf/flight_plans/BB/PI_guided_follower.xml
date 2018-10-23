@@ -81,11 +81,25 @@ NOTE: A velocity forcefield in the horizontal plane applied here, so if an obsta
 -->
 
     <block name="Go Forward">
-      <while cond="LessThan(block_time,120)"><!--LessThan(block_time,5)"/-->
+      <while cond="LessThan(block_time,120)">
 	<call_once fun="guidance_h_set_guided_vel(opt_vel_x,opt_vel_y)"/>
       </while>
+      <exception cond="stateGetBodyRates_f()->r>0.05" deroute="Fix yaw"/>
       <deroute block="Hover"/>
     </block>
+
+    <!--block name="Follow_leader">
+	<while cond="TRUE">
+	   <call_once fun="pi_follow_leader()"/>
+	</while>
+    </block-->
+
+    <block name="Fix yaw">
+      <call_once fun="guidance_h_set_guided_heading_rate(0.0f)" />
+      <while cond="LessThan(stage_time,1)"/>
+      <deroute block="Go Forward"/>
+    </block>
+
 
 <!-- Hover: -->
 

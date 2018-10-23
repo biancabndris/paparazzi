@@ -39,8 +39,8 @@ struct pi_state_t{
    float pos[2];
    float vel[2];
    float psi;
-   float pos_rel[4];
-   float vel_rel[4];
+   float pos_rel[2];
+   float vel_rel[2];
 };
 
 struct pi_wp_t{

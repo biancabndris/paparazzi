@@ -1,4 +1,4 @@
-<!DOCTYPE flight_plan SYSTEM "flight_plan.dtd">
+<!DOCTYPE flight_plan SYSTEM "../flight_plan.dtd">
 
 <flight_plan alt="1" ground_alt="0" lat0="51.990634" lon0="4.376789" max_dist_from_home="20" name="Rotorcraft Optitrack (Delft)" security_height="0.3">
   <header>
@@ -34,8 +34,8 @@ static inline void obstacle_detection_cb(uint8_t sender_id __attribute__((unused
     <variable var="forward_vel" init="0.5f" type="float" min="0." max="2" step="0.1"/>
 	  <variable var="nominal_alt" init="NAV_DEFAULT_ALT" type="float" min="0." max="10." step="0.1"/>
     <abi_binding name="OBSTACLE_DETECTION" handler="obstacle_detection_cb"/>
-    <abi_binding name="RANGE_FORCEFIELD" vars="vel_body_x_FF, vel_body_y_FF, vel_body_z_FF"/>
-	</variables>
+    <abi_binding name="PATH_INTEGRAL" vars="id, opt_vel_x, opt_vel_y"/>
+  </variables>
 
 <!--Example Guided flight plan:
 
@@ -48,9 +48,8 @@ Remember to choose AP_MODE_GUIDED or else it won't work!!!
     <block name="FPInit">
       <while cond="!GpsFixValid()"/>
       <set var = "obstacle_dist" value="10.0"/><!--Or else it will turn everytime if the abi message is not received-->
-      <set var = "vel_body_x_FF" value="0."/>
-      <set var = "vel_body_y_FF" value="0."/>
-      <set var = "vel_body_z_FF" value="0."/>
+      <set var = "opt_vel_x" value="0."/>
+      <set var = "opt_vel_y" value="0."/>
       <call_once fun="ins_reset_altitude_ref()"/>
       <while cond="1"/>
     </block>
@@ -70,7 +69,7 @@ Remember to choose AP_MODE_GUIDED or else it won't work!!!
       <call_once fun="autopilot_guided_update(GUIDED_FLAG_XY_OFFSET_Z_VEL,0.,0.,-climb_descent_vel,desired_heading)"/>
       <while cond="LessThan(stateGetPositionEnu_f()->z,nominal_alt-0.2)"/>
       <call_once fun="autopilot_guided_update(GUIDED_FLAG_XY_OFFSET,0.,0.,-nominal_alt,desired_heading)"/>    
-      <while cond="LessThan(stage_time,10000)"/>
+      <while cond="LessThan(stage_time,1)"/>
     </block>
 
 <!-- Go Forward:
@@ -83,7 +82,7 @@ NOTE: A velocity forcefield in the horizontal plane applied here, so if an obsta
 
     <block name="Go Forward">
       <while cond="1"><!--LessThan(block_time,5)"/-->
-        <call_once fun="autopilot_guided_update(GUIDED_FLAG_XY_VEL_BODY,forward_vel + vel_body_x_FF,vel_body_y_FF,-nominal_alt,desired_heading)"/>
+        <call_once fun="autopilot_guided_update(GUIDED_FLAG_XY_VEL_BODY,opt_vel_x,opt_vel_y,-nominal_alt,desired_heading)"/>
       </while>
       <exception cond="1.5>obstacle_dist" deroute="Turn 90 deg"/>
     </block>

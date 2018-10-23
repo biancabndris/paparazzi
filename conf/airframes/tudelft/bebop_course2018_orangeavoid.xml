@@ -11,7 +11,8 @@
   	  <configure name="MODEM_HOST" value="192.168.1.137" />
  	</target>
     <target name="nps" board="pc">
-      <module name="fdm" type="gazebo"/>
+      <module name="fdm" type="jsbsim"/>
+      <module name="udp"/>
     </target>
 
     <!-- Front Camera parameters -->
@@ -57,9 +58,9 @@
     <!--module name="bebop_ae_awb">
       <define name="CV_AE_AWB_VERBOSE" value="0" />
     </module-->
-    <module name="cv_colorfilter">
+    <!--module name="cv_colorfilter">
       <define name="COLORFILTER_CAMERA" value="front_camera" />
-    </module>
+    </module-->
     <!--module name="orange_avoider" /-->
     <module name="video_rtp_stream">
       <define name="VIEWVIDEO_CAMERA" value="front_camera" />

@@ -89,14 +89,14 @@ static inline void set_state(struct pi_state_t *st){
   struct EnuCoor_f *ac_pos = acInfoGetPositionEnu_f(follower_id);
   st->pos_rel[0] = ac_pos->y;
   st->pos_rel[1] = ac_pos->x;
-  st->pos_rel[2] = 0;
-  st->pos_rel[3] = 0;
+  //st->pos_rel[2] = 0;
+  //st->pos_rel[3] = 0;
 
   struct EnuCoor_f *ac_vel = acInfoGetVelocityEnu_f(follower_id);
   st->vel_rel[0] = ac_vel->y;
   st->vel_rel[1] = ac_vel->x;
-  st->vel_rel[2] = 0;
-  st->vel_rel[3] = 0;
+  //st->vel_rel[2] = 0;
+  //st->vel_rel[3] = 0;
 }
 
 static inline void check_wp(struct pi_wp_t *wp, struct traj_t *trajectory){
@@ -122,20 +122,20 @@ static inline void check_wp(struct pi_wp_t *wp, struct traj_t *trajectory){
 
 static inline void set_trajectory(struct traj_t *trajectory){
 
-  trajectory->wps[0].pos_N = -1.5;
-  trajectory->wps[0].pos_E = -1;
+  trajectory->wps[0].pos_N = 0;//-1.5;
+  trajectory->wps[0].pos_E = 0;//-1;
   trajectory->wps[0].wp_index = 0;
 
-  trajectory->wps[1].pos_N = -1.5;
-  trajectory->wps[1].pos_E = 1;
+  trajectory->wps[1].pos_N = 0;//-1.5;
+  trajectory->wps[1].pos_E = 0;//1;
   trajectory->wps[1].wp_index = 1;
 
-  trajectory->wps[2].pos_N = 1.5;
-  trajectory->wps[2].pos_E = 1;
+  trajectory->wps[2].pos_N = 0;//1.5;
+  trajectory->wps[2].pos_E = 0;//1;
   trajectory->wps[2].wp_index = 2;
 
-  trajectory->wps[3].pos_N = 1.5;
-  trajectory->wps[3].pos_E = -1;
+  trajectory->wps[3].pos_N = 0;//1.5;
+  trajectory->wps[3].pos_E = 0;//-1;
   trajectory->wps[3].wp_index = 3;
 }
 
