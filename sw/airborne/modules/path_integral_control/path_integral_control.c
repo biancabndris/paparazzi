@@ -162,7 +162,7 @@ static void *pi_calc_thread(void *arg __attribute__((unused)))
     clock_gettime(CLOCK_MONOTONIC, &finish);
     elapsed = (finish.tv_sec - start.tv_sec);
     elapsed += (finish.tv_nsec - start.tv_nsec) / 1000000000.0;
-    //printf("TIME %f\n", elapsed);
+    printf("TIME %f\n", elapsed);
       }
   return 0;
 }
