@@ -26,11 +26,10 @@
 #ifndef OPTIMAL_CONTROL_CALCULATOR_H
 #define OPTIMAL_CONTROL_CALCULATOR_H
 
-#define TRAJ_THR 0.4
+
 
 #include "pi_inter_thread_data.h"
 #include "state.h"
-#include "navigation.h"
 #include <stdio.h>
 #include <gsl/gsl_rng.h>
 #include <gsl/gsl_randist.h>
@@ -38,7 +37,6 @@
 
 struct path_integral_t{
    float freq;
-   bool leader;
    uint8_t H;
    float dh;
    uint16_t iH;
@@ -55,8 +53,14 @@ struct path_integral_t{
    float HEADING_PENALTY;
    float PARALLEL_PENALTY;
    float MAX_SPEED;
+   float MIN_SPEED;
+   float MIN_SPEED_PENALTY;
    float PARALLEL_THR;
    float OUTSIDECZ_PENALTY;
+   float CZ_LIMIT;
+   float RADIUS;
+   uint8_t TASK;
+   uint8_t SAMPLING_METHOD;
 
    uint8_t units;
    uint8_t dimU;
@@ -72,7 +76,7 @@ struct traj_t{
 
 extern void pi_calc_init(struct path_integral_t *pi);
 bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct pi_wp_t *wp, struct pi_result_t *result);
-
+extern void init_controls(struct path_integral_t *pi);
 
 static inline void set_state(struct pi_state_t *st){
 
@@ -99,28 +103,9 @@ static inline void set_state(struct pi_state_t *st){
   //st->vel_rel[3] = 0;
 }
 
-static inline void check_wp(struct pi_wp_t *wp, struct traj_t *trajectory){
 
-  struct EnuCoor_i current_wp = {wp->pos_E/0.0039063, wp->pos_N/0.0039063, 1/0.0039063};
-  float dist = get_dist2_to_point(&current_wp);
-  if(dist < TRAJ_THR*TRAJ_THR){
-    if(wp->wp_index < 3){
-      int index = wp->wp_index + 1;
-      wp->pos_N = trajectory->wps[index].pos_N;
-      wp->pos_E = trajectory->wps[index].pos_E;
-      wp->wp_index = index;
-    }
-    else{
-      int index2 = 0;
-      wp->pos_N = trajectory->wps[index2].pos_N;
-      wp->pos_E = trajectory->wps[index2].pos_E;
-      wp->wp_index = index2;
-    }
-  }
 
-}
-
-static inline void set_trajectory(struct traj_t *trajectory){
+/*static inline void set_trajectory(struct traj_t *trajectory){
 
   trajectory->wps[0].pos_N = 0;//-1.5;
   trajectory->wps[0].pos_E = 0;//-1;
@@ -137,7 +122,7 @@ static inline void set_trajectory(struct traj_t *trajectory){
   trajectory->wps[3].pos_N = 0;//1.5;
   trajectory->wps[3].pos_E = 0;//-1;
   trajectory->wps[3].wp_index = 3;
-}
+}*/
 
 
 #endif

@@ -36,6 +36,9 @@ extern void pi_run(void);
 extern void start_thread(void);
 extern void stop_thread(void);
 
-//extern bool pi_follow_leader(void);
+
+extern uint8_t pi_follow_wps(void);
+extern uint8_t pi_follow_leader(void);
+extern uint8_t pi_circle_wp(void);
 
 #endif

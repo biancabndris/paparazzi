@@ -34,9 +34,6 @@
 #ifndef PI_FREQ
 #define PI_FREQ 15
 #endif
-#ifndef PI_LEADER
-#define PI_LEADER 1
-#endif
 #ifndef PI_HORIZON
 #define PI_HORIZON 2
 #endif
@@ -76,6 +73,12 @@
 #ifndef PI_MAX_SPEED
 #define PI_MAX_SPEED 0.5
 #endif
+#ifndef PI_MIN_SPEED
+#define PI_MIN_SPEED 0.3
+#endif
+#ifndef PI_MIN_SPEED_PENALTY
+#define PI_MIN_SPEED_PENALTY 100
+#endif
 #ifndef PI_PARALLEL_THR
 #define PI_PARALLEL_THR 0.3
 #endif
@@ -85,15 +88,22 @@
 #ifndef PI_DIM_U
 #define PI_DIM_U 2
 #endif
-#ifndef CZ_LIMIT
-#define CZ_LIMIT 2.8
+#ifndef PI_CZ_LIMIT
+#define PI_CZ_LIMIT 2.8
 #endif
 #ifndef PI_OUTSIDECZ_PENALTY
 #define PI_OUTSIDECZ_PENALTY 5
 #endif
-#ifndef SAMPLING_METHOD
-#define SAMPLING_METHOD 0
+#ifndef PI_RADIUS
+#define PI_RADIUS 4
 #endif
+#ifndef PI_TASK
+#define PI_TASK 0
+#endif
+#ifndef PI_SAMPLING_METHOD
+#define PI_SAMPLING_METHOD 1
+#endif
+
 
 
 // Internal functions
@@ -105,7 +115,6 @@ void select_probe(uint8_t num_probes, int8_t angle, float ** u_roll, struct path
 void pi_calc_init(struct path_integral_t *pi){
 
      pi->freq               = PI_FREQ;
-     pi->leader             = PI_LEADER;
      pi->H                  = PI_HORIZON;
      pi->dh                 = PI_DH;
      pi->iH                 = PI_HORIZON/PI_DH;
@@ -122,8 +131,14 @@ void pi_calc_init(struct path_integral_t *pi){
      pi->HEADING_PENALTY    = PI_HEADING_PENALTY;
      pi->PARALLEL_PENALTY   = PI_PARALLEL_PENALTY;
      pi->MAX_SPEED          = PI_MAX_SPEED;
+     pi->MIN_SPEED          = PI_MIN_SPEED;
+     pi->MIN_SPEED_PENALTY  = PI_MIN_SPEED_PENALTY;
      pi->PARALLEL_THR       = PI_PARALLEL_THR;
-     pi->OUTSIDECZ_PENALTY   = PI_OUTSIDECZ_PENALTY;
+     pi->OUTSIDECZ_PENALTY  = PI_OUTSIDECZ_PENALTY;
+     pi->CZ_LIMIT           = PI_CZ_LIMIT;
+     pi->RADIUS             = PI_RADIUS;
+     pi->TASK               = PI_TASK;
+     pi->SAMPLING_METHOD    = PI_SAMPLING_METHOD;
 
      pi->units              = PI_UNITS;
      pi->dimU               = PI_DIM_U;
@@ -132,11 +147,7 @@ void pi_calc_init(struct path_integral_t *pi){
      pi->seed               = gsl_rng_alloc(gsl_rng_mt19937);
      gsl_rng_set(pi->seed, 0);
 
-     for(int h=0; h < pi->iH; h++) {
-       for(int u=0; u < pi->dimU; u++) {
-         pi->u_exp[h][u] = 0;
-       }
-     }
+     init_controls(pi);
 
 }
 
@@ -175,6 +186,7 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
   u_roll[pi->iH-1][0] = pi->u_exp[pi->iH-1][0]*shift;
   u_roll[pi->iH-1][1] = pi->u_exp[pi->iH-1][1]*shift;
 
+  // Initialize states
   for (uint8_t i = 0; i< pi->dimU; i++){
     initial_state.pos[i] = st->pos[i];
     initial_state.vel[i] = st->vel[i];
@@ -182,18 +194,18 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
     initial_state.vel_rel[i] = st->vel_rel[i];
   }
 
-  switch (SAMPLING_METHOD){
+  switch (pi->SAMPLING_METHOD){
 
     case 0 :
 
-      printf("[sampling] Sampling method 0.\n");
+      {printf("[sampling] Sampling method 0.\n");
       //printf("[sampling] Initial U %f, %f\n",u_roll[0][0], u_roll[0][1]);
 
-      break;
+      break;}
 
     case 1 :
 
-      printf("[sampling] Sampling method 1.\n");
+      {printf("[sampling] Sampling method 1.\n");
       int8_t angle = 30;
       uint8_t num_probes = 7;
       MAKE_MATRIX_PTR(u_roll_ptr, u_roll, pi->iH);
@@ -215,7 +227,7 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
       initial_state.vel[1] = best_probe_vel[1];
 
       pi->N = 100;
-      break;
+      break;}
    }
 
 
@@ -258,97 +270,105 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
 
       //Propagate follower units
       //for(int a=0; a < pi->units; a++) {
-        internal_state.pos_rel[0] += internal_state.vel_rel[0] * pi->dh;
-        internal_state.pos_rel[1] += internal_state.vel_rel[1] * pi->dh;
+      internal_state.pos_rel[0] += internal_state.vel_rel[0] * pi->dh;
+      internal_state.pos_rel[1] += internal_state.vel_rel[1] * pi->dh;
       //}
       // Control Cost
       samples_cost[n] += pi->R * fabs(u_roll[h][0]*u_roll[h][0]*half_dh + u_roll[h][0]*noise[n][h][0] + u_roll[h][1]*u_roll[h][1]*half_dh + u_roll[h][1]*noise[n][h][1]);
 
-      if(pi->leader){
-        // Target distance cost
-        float dist_target = (internal_state.pos[0]- wp->pos_N) * (internal_state.pos[0]- wp->pos_N) + (internal_state.pos[1]- wp->pos_E ) * (internal_state.pos[1]- wp->pos_E );
-        //samples_cost[n] += pi->TARGET_PENALTY* pi->dh * dist_target;
-        samples_cost[n] += exp((dist_target - 4));
 
-        //if(dist_target > 0.5f){
-        //  float cross_product_3 = fabs(applied_vel_n * wp->pos_E - applied_vel_e* wp->pos_N);
-        //  samples_cost[n] += pi->HEADING_PENALTY * pi->dh * cross_product_3;
-        //}
+      // Out of boundaries cost
+      if(internal_state.pos[0] > pi->CZ_LIMIT){
+        float outside = internal_state.pos[0] - pi->CZ_LIMIT;
+      samples_cost[n] += exp( pi->OUTSIDECZ_PENALTY* outside);
+      }
+      if(internal_state.pos[0] < -pi->CZ_LIMIT){
+      float outside = internal_state.pos[0] + pi->CZ_LIMIT;
+      samples_cost[n] += exp( pi->OUTSIDECZ_PENALTY* outside);
+      }
+      if(internal_state.pos[1] > pi->CZ_LIMIT){
+        float outside = internal_state.pos[1] - pi->CZ_LIMIT;
+        samples_cost[n] += exp( pi->OUTSIDECZ_PENALTY* outside);
+      }
+     if(internal_state.pos[1] < -pi->CZ_LIMIT){
+        float outside = internal_state.pos[1] + pi->CZ_LIMIT;
+       samples_cost[n] += exp( pi->OUTSIDECZ_PENALTY* outside);
+      }
 
+     float dist_unit = 0;
+     float dist_wp = 0;
+     switch (pi->TASK){
+        case 0:
+
+        {  //printf("[task] Leader task selected\n");
+
+        // Distance from WP cost
+        dist_wp = (internal_state.pos[0]- wp->pos_N) * (internal_state.pos[0]- wp->pos_N) + (internal_state.pos[1]- wp->pos_E ) * (internal_state.pos[1]- wp->pos_E );
+        samples_cost[n] += pi->TARGET_PENALTY* pi->dh * dist_wp;
+
+        // Heading cost
+        if(dist_wp > 0.5f){
+          float cross_product_3 = fabs(applied_vel_n * wp->pos_E - applied_vel_e* wp->pos_N);
+          samples_cost[n] += pi->HEADING_PENALTY * pi->dh * cross_product_3;
+        }
+
+        // Collision cost
         //for(int a=0; a < pi->units-1; a++){
-          float dist_unit = (internal_state.pos[0]-  internal_state.pos_rel[0]) * (internal_state.pos[0]- internal_state.pos_rel[0]) + (internal_state.pos[1]- internal_state.pos_rel[1]) * (internal_state.pos[1]- internal_state.pos_rel[1]);
+          dist_unit = (internal_state.pos[0]-  internal_state.pos_rel[0]) * (internal_state.pos[0]- internal_state.pos_rel[0]) + (internal_state.pos[1]- internal_state.pos_rel[1]) * (internal_state.pos[1]- internal_state.pos_rel[1]);
           if(dist_unit > pi->COLLISION_DISTANCE ){}
           else{ samples_cost[n] += exp(pi->COLLISION_PENALTY *(pi->COLLISION_DISTANCE - dist_unit));}
         //}
-         float velocity_vec = applied_vel_n * applied_vel_n + applied_vel_e * applied_vel_e;
-         if(velocity_vec >0.3){}
-         else{
-           samples_cost[n] += 100*(0.3 - velocity_vec)*(0.3 - velocity_vec);
-         }
+
+         break;}
 
 
-        if(internal_state.pos[0] > CZ_LIMIT){
-          float outside = internal_state.pos[0] - CZ_LIMIT;
-        samples_cost[n] += exp( pi->OUTSIDECZ_PENALTY* outside);
-        }
-        if(internal_state.pos[0] < -CZ_LIMIT){
-        float outside = internal_state.pos[0] + CZ_LIMIT;
-        samples_cost[n] += exp( pi->OUTSIDECZ_PENALTY* outside);
-        }
-        if(internal_state.pos[1] > CZ_LIMIT){
-          float outside = internal_state.pos[1] - CZ_LIMIT;
-          samples_cost[n] += exp( pi->OUTSIDECZ_PENALTY* outside);
-        }
-       if(internal_state.pos[1] < -CZ_LIMIT){
-          float outside = internal_state.pos[1] + CZ_LIMIT;
-         samples_cost[n] += exp( pi->OUTSIDECZ_PENALTY* outside);
-        }
-      }
-      else{
+        case 1:
 
-        float dist_target = (internal_state.pos[0]- wp->pos_N) * (internal_state.pos[0]- wp->pos_N) + (internal_state.pos[1]- wp->pos_E ) * (internal_state.pos[1]- wp->pos_E );
-        //samples_cost[n] += pi->TARGET_PENALTY* pi->dh * dist_target;
-        samples_cost[n] += exp((dist_target - 4));
+        {//printf("[task] Follower task selected\n");
 
-        float dist_leader = (internal_state.pos[0]- internal_state.pos_rel[0]) * (internal_state.pos[0]- internal_state.pos_rel[0]) + (internal_state.pos[1]- internal_state.pos_rel[1]) * (internal_state.pos[1]- internal_state.pos_rel[1]);
-        //if(dist_leader < pi->COHESION_DISTANCE ){}
-        //else{samples_cost[n] += exp(pi->COHESION_PENALTY *(dist_leader - pi->COHESION_DISTANCE));}
+          // Cohesion cost
+          float dist_leader = (internal_state.pos[0]- internal_state.pos_rel[0]) * (internal_state.pos[0]- internal_state.pos_rel[0]) + (internal_state.pos[1]- internal_state.pos_rel[1]) * (internal_state.pos[1]- internal_state.pos_rel[1]);
+          if(dist_leader < pi->COHESION_DISTANCE ){}
+          else{samples_cost[n] += exp(pi->COHESION_PENALTY *(dist_leader - pi->COHESION_DISTANCE));}
 
-        //for(int a=0; a < pi->units-1; a++){
-          //float dist_unit = (internal_state.pos[0]-  internal_state.pos_rel[0+2*a]) * (internal_state.pos[0]- internal_state.pos_rel[0+2*a]) + (internal_state.pos[1]- internal_state.pos_rel[0+2*a]) * (internal_state.pos[1]- internal_state.pos_rel[0+2*a]);
-          if(dist_leader > pi->COLLISION_DISTANCE ){}
-          else{ samples_cost[n] += exp(pi->COLLISION_PENALTY *(pi->COLLISION_DISTANCE - dist_leader));}
-          //printf("Diff dist leader %f, diff dist unit %f \n", dist_leader - pi->COHESION_DISTANCE, pi->COLLISION_DISTANCE - dist_unit );
-/*
-          float cross_product_3 = fabs(internal_state.pos[0] * internal_state.pos_rel[1+2*a] - internal_state.pos[1] * internal_state.pos_rel[0+2*a]);
-          if(cross_product_3 > pi->PARALLEL_THR){}
-          else{samples_cost[n] += exp(pi->PARALLEL_PENALTY *(pi->PARALLEL_THR - cross_product_3));}
-*/
-        //}
+          // Collision cost
+          //for(int a=0; a < pi->units-1; a++){
+            //float dist_unit = (internal_state.pos[0]-  internal_state.pos_rel[0+2*a]) * (internal_state.pos[0]- internal_state.pos_rel[0+2*a]) + (internal_state.pos[1]- internal_state.pos_rel[0+2*a]) * (internal_state.pos[1]- internal_state.pos_rel[0+2*a]);
+            if(dist_leader > pi->COLLISION_DISTANCE ){}
+            else{ samples_cost[n] += exp(pi->COLLISION_PENALTY *(pi->COLLISION_DISTANCE - dist_leader));}
+            //printf("Diff dist leader %f, diff dist unit %f \n", dist_leader - pi->COHESION_DISTANCE, pi->COLLISION_DISTANCE - dist_unit );
 
-        float velocity_vec = applied_vel_n * applied_vel_n + applied_vel_e * applied_vel_e;
-        if(velocity_vec >0.3){}
-        else{
-          samples_cost[n] += 100*(0.3 - velocity_vec)*(0.3 - velocity_vec);
-        }
+          // Parallel cost
+            //float cross_product_3 = fabs(internal_state.pos[0] * internal_state.pos_rel[1+2*a] - internal_state.pos[1] * internal_state.pos_rel[0+2*a]);
+            //if(cross_product_3 > pi->PARALLEL_THR){}
+            //else{samples_cost[n] += exp(pi->PARALLEL_PENALTY *(pi->PARALLEL_THR - cross_product_3));}
+
+          //}
+            break;}
+
+        case 2:
+
+          {//printf("[task] Circling task selected\n");
+
+          // Distance from center cost
+          dist_wp = (internal_state.pos[0]- wp->pos_N) * (internal_state.pos[0]- wp->pos_N) + (internal_state.pos[1]- wp->pos_E ) * (internal_state.pos[1]- wp->pos_E );
+          samples_cost[n] += exp((dist_wp - pi->RADIUS));
+
+          // Minimum velocity cost
+          float velocity_vec = applied_vel_n * applied_vel_n + applied_vel_e * applied_vel_e;
+          if(velocity_vec > pi->MIN_SPEED){}
+          else{
+            samples_cost[n] += pi->MIN_SPEED_PENALTY*(pi->MIN_SPEED - velocity_vec)*(pi->MIN_SPEED - velocity_vec);}
 
 
-        if(internal_state.pos[0] > CZ_LIMIT){
-          float outside = internal_state.pos[0] - CZ_LIMIT;
-        samples_cost[n] += exp( pi->OUTSIDECZ_PENALTY* outside);
-        }
-        if(internal_state.pos[0] < -CZ_LIMIT){
-        float outside = internal_state.pos[0] + CZ_LIMIT;
-        samples_cost[n] += exp( pi->OUTSIDECZ_PENALTY* outside);
-        }
-        if(internal_state.pos[1] > CZ_LIMIT){
-          float outside = internal_state.pos[1] - CZ_LIMIT;
-          samples_cost[n] += exp( pi->OUTSIDECZ_PENALTY* outside);
-        }
-       if(internal_state.pos[1] < -CZ_LIMIT){
-          float outside = internal_state.pos[1] + CZ_LIMIT;
-         samples_cost[n] += exp( pi->OUTSIDECZ_PENALTY* outside);
-        }
+          // Collision cost
+          //for(int a=0; a < pi->units-1; a++){
+            dist_unit = (internal_state.pos[0]-  internal_state.pos_rel[0]) * (internal_state.pos[0]- internal_state.pos_rel[0]) + (internal_state.pos[1]- internal_state.pos_rel[1]) * (internal_state.pos[1]- internal_state.pos_rel[1]);
+            if(dist_unit > pi->COLLISION_DISTANCE ){}
+            else{ samples_cost[n] += exp(pi->COLLISION_PENALTY *(pi->COLLISION_DISTANCE - dist_unit));}
+          //}
+          break;}
+
       }
     }
     cost_sum += samples_cost[n];
@@ -558,81 +578,83 @@ void select_probe(uint8_t num_probes, int8_t angle, float ** u_roll, struct path
       // Control Cost
       samples_cost_probes[p] += pi->R * fabs(u_horizon[h][0]*u_horizon[h][0]*half_dh  + u_horizon[h][1]*u_horizon[h][1]*half_dh);
 
-      if(pi->leader){
-        // Target distance cost
-        float dist_target = (internal_state_probes.pos[0]- wp->pos_N) * (internal_state_probes.pos[0]- wp->pos_N) + (internal_state_probes.pos[1]- wp->pos_E ) * (internal_state_probes.pos[1]- wp->pos_E );
-        //samples_cost_probes[p] += pi->TARGET_PENALTY* pi->dh * dist_target;
-        samples_cost_probes[p] += exp((dist_target - 4));
-
-        // Collision cost
-        float dist_unit = (internal_state_probes.pos[0]-  internal_state_probes.pos_rel[0]) * (internal_state_probes.pos[0]- internal_state_probes.pos_rel[0]) + (internal_state_probes.pos[1]- internal_state_probes.pos_rel[1]) * (internal_state_probes.pos[1]- internal_state_probes.pos_rel[1]);
-        if(dist_unit > pi->COLLISION_DISTANCE ){}
-        else{ samples_cost_probes[p] += exp(pi->COLLISION_PENALTY *(pi->COLLISION_DISTANCE - dist_unit));}
-
-        // Min velocity cost
-        float velocity_vec = internal_state_probes.vel[0] * internal_state_probes.vel[0] + internal_state_probes.vel[1] * internal_state_probes.vel[1];
-        if(velocity_vec >0.3){}
-        else{
-          samples_cost_probes[p] += 100*(0.3 - velocity_vec)*(0.3 - velocity_vec);
-        }
-
-
-        // Out of bounds cost
-        if(internal_state_probes.pos[0] > CZ_LIMIT){
-          float outside = internal_state_probes.pos[0] - CZ_LIMIT;
-          samples_cost_probes[p] += exp( pi->OUTSIDECZ_PENALTY* outside);
-        }
-        if(internal_state_probes.pos[0] < -CZ_LIMIT){
-          float outside = internal_state_probes.pos[0] + CZ_LIMIT;
-          samples_cost_probes[p] += exp( pi->OUTSIDECZ_PENALTY* outside);
-        }
-        if(internal_state_probes.pos[1] > CZ_LIMIT){
-          float outside = internal_state_probes.pos[1] - CZ_LIMIT;
-          samples_cost_probes[p] += exp( pi->OUTSIDECZ_PENALTY* outside);
-        }
-        if(internal_state_probes.pos[1] < -CZ_LIMIT){
-          float outside = internal_state_probes.pos[1] + CZ_LIMIT;
-          samples_cost_probes[p] += exp( pi->OUTSIDECZ_PENALTY* outside);
-        }
+      // Out of bounds cost
+      if(internal_state_probes.pos[0] >  pi->CZ_LIMIT){
+        float outside = internal_state_probes.pos[0] -  pi->CZ_LIMIT;
+        samples_cost_probes[p] += exp( pi->OUTSIDECZ_PENALTY* outside);
       }
-      else{
+      if(internal_state_probes.pos[0] < -pi->CZ_LIMIT){
+        float outside = internal_state_probes.pos[0] +  pi->CZ_LIMIT;
+        samples_cost_probes[p] += exp( pi->OUTSIDECZ_PENALTY* outside);
+      }
+      if(internal_state_probes.pos[1] >  pi->CZ_LIMIT){
+        float outside = internal_state_probes.pos[1] -  pi->CZ_LIMIT;
+        samples_cost_probes[p] += exp( pi->OUTSIDECZ_PENALTY* outside);
+      }
+      if(internal_state_probes.pos[1] < -pi->CZ_LIMIT){
+        float outside = internal_state_probes.pos[1] +  pi->CZ_LIMIT;
+        samples_cost_probes[p] += exp( pi->OUTSIDECZ_PENALTY* outside);
+      }
 
-        float dist_target = (internal_state_probes.pos[0]- wp->pos_N) * (internal_state_probes.pos[0]- wp->pos_N) + (internal_state_probes.pos[1]- wp->pos_E ) * (internal_state_probes.pos[1]- wp->pos_E );
-        //samples_cost_probes[p] += pi->TARGET_PENALTY* pi->dh * dist_target;
-        samples_cost_probes[p] += exp((dist_target - 4));
+      float dist_wp = 0.0;
+      float dist_unit = 0.0;
+      switch(pi->TASK){
+        case 0:
+          {//printf("[task] Leader task selected\n");
+          // Target distance cost
+          dist_wp = (internal_state_probes.pos[0]- wp->pos_N) * (internal_state_probes.pos[0]- wp->pos_N) + (internal_state_probes.pos[1]- wp->pos_E ) * (internal_state_probes.pos[1]- wp->pos_E );
+          samples_cost_probes[p] += pi->TARGET_PENALTY* pi->dh * dist_wp;
+          samples_cost_probes[p] += exp((dist_wp - pi->RADIUS));
 
-        float dist_leader = (internal_state_probes.pos[0]- internal_state_probes.pos_rel[0]) * (internal_state_probes.pos[0]- internal_state_probes.pos_rel[0]) + (internal_state_probes.pos[1]- internal_state_probes.pos_rel[1]) * (internal_state_probes.pos[1]- internal_state_probes.pos_rel[1]);
-        //if(dist_leader < pi->COHESION_DISTANCE ){}
-        //else{samples_cost_probes[p] += exp(pi->COHESION_PENALTY *(dist_leader - pi->COHESION_DISTANCE));}
+          // Heading cost
+          if(dist_wp > 0.5f){
+            float cross_product_3 = fabs(internal_state_probes.vel[0] * wp->pos_E - internal_state_probes.vel[1]* wp->pos_N);
+            samples_cost_probes[p] += pi->HEADING_PENALTY * pi->dh * cross_product_3;
+          }
 
-        //for(int a=0; a < pi->units-1; a++){
-        //float dist_unit = (internal_state_probes.pos[0]-  internal_state_probes.pos_rel[0+2*a]) * (internal_state_probes.pos[0]- internal_state_probes.pos_rel[0+2*a]) + (internal_state_probes.pos[1]- internal_state_probes.pos_rel[0+2*a]) * (internal_state_probes.pos[1]- internal_state_probes.pos_rel[0+2*a]);
-        if(dist_leader > pi->COLLISION_DISTANCE ){}
-        else{ samples_cost_probes[p] += exp(pi->COLLISION_PENALTY *(pi->COLLISION_DISTANCE - dist_leader));}
+          // Collision cost
+          dist_unit = (internal_state_probes.pos[0]-  internal_state_probes.pos_rel[0]) * (internal_state_probes.pos[0]- internal_state_probes.pos_rel[0]) + (internal_state_probes.pos[1]- internal_state_probes.pos_rel[1]) * (internal_state_probes.pos[1]- internal_state_probes.pos_rel[1]);
+          if(dist_unit > pi->COLLISION_DISTANCE ){}
+          else{ samples_cost_probes[p] += exp(pi->COLLISION_PENALTY *(pi->COLLISION_DISTANCE - dist_unit));}
 
-        float velocity_vec = internal_state_probes.vel[0] * internal_state_probes.vel[0] + internal_state_probes.vel[1] * internal_state_probes.vel[1];
-        if(velocity_vec >0.3){}
-        else{
-          samples_cost_probes[p] += 100*(0.3 - velocity_vec)*(0.3 - velocity_vec);
-        }
+          break;}
 
-        // Out of bounds cost
-        if(internal_state_probes.pos[0] > CZ_LIMIT){
-          float outside = internal_state_probes.pos[0] - CZ_LIMIT;
-          samples_cost_probes[p] += exp( pi->OUTSIDECZ_PENALTY* outside);
-        }
-        if(internal_state_probes.pos[0] < -CZ_LIMIT){
-          float outside = internal_state_probes.pos[0] + CZ_LIMIT;
-          samples_cost_probes[p] += exp( pi->OUTSIDECZ_PENALTY* outside);
-        }
-        if(internal_state_probes.pos[1] > CZ_LIMIT){
-          float outside = internal_state_probes.pos[1] - CZ_LIMIT;
-          samples_cost_probes[p] += exp( pi->OUTSIDECZ_PENALTY* outside);
-        }
-        if(internal_state_probes.pos[1] < -CZ_LIMIT){
-          float outside = internal_state_probes.pos[1] + CZ_LIMIT;
-          samples_cost_probes[p] += exp( pi->OUTSIDECZ_PENALTY* outside);
-        }
+        case 1:
+
+          {//printf("[task] Follower task selected\n");
+
+          // Leader cohesion cost
+          float dist_leader = (internal_state_probes.pos[0]- internal_state_probes.pos_rel[0]) * (internal_state_probes.pos[0]- internal_state_probes.pos_rel[0]) + (internal_state_probes.pos[1]- internal_state_probes.pos_rel[1]) * (internal_state_probes.pos[1]- internal_state_probes.pos_rel[1]);
+          if(dist_leader < pi->COHESION_DISTANCE ){}
+          else{samples_cost_probes[p] += exp(pi->COHESION_PENALTY *(dist_leader - pi->COHESION_DISTANCE));}
+
+          // Collision cost
+          //for(int a=0; a < pi->units-1; a++){
+          //float dist_unit = (internal_state_probes.pos[0]-  internal_state_probes.pos_rel[0+2*a]) * (internal_state_probes.pos[0]- internal_state_probes.pos_rel[0+2*a]) + (internal_state_probes.pos[1]- internal_state_probes.pos_rel[0+2*a]) * (internal_state_probes.pos[1]- internal_state_probes.pos_rel[0+2*a]);
+          if(dist_leader > pi->COLLISION_DISTANCE ){}
+          else{ samples_cost_probes[p] += exp(pi->COLLISION_PENALTY *(pi->COLLISION_DISTANCE - dist_leader));}
+
+          break;}
+
+        case 2:
+          {//printf("[task] Circling task selected\n");
+          // Target distance cost
+          dist_wp = (internal_state_probes.pos[0]- wp->pos_N) * (internal_state_probes.pos[0]- wp->pos_N) + (internal_state_probes.pos[1]- wp->pos_E ) * (internal_state_probes.pos[1]- wp->pos_E );
+          samples_cost_probes[p] += pi->TARGET_PENALTY* pi->dh * dist_wp;
+          samples_cost_probes[p] += exp((dist_wp - 4));
+
+          // Collision cost
+          dist_unit = (internal_state_probes.pos[0]-  internal_state_probes.pos_rel[0]) * (internal_state_probes.pos[0]- internal_state_probes.pos_rel[0]) + (internal_state_probes.pos[1]- internal_state_probes.pos_rel[1]) * (internal_state_probes.pos[1]- internal_state_probes.pos_rel[1]);
+          if(dist_unit > pi->COLLISION_DISTANCE ){}
+          else{ samples_cost_probes[p] += exp(pi->COLLISION_PENALTY *(pi->COLLISION_DISTANCE - dist_unit));}
+
+          // Min velocity cost
+          float velocity_vec = internal_state_probes.vel[0] * internal_state_probes.vel[0] + internal_state_probes.vel[1] * internal_state_probes.vel[1];
+          if(velocity_vec >pi->MIN_SPEED){}
+          else{
+            samples_cost_probes[p] += pi->MIN_SPEED_PENALTY*(pi->MIN_SPEED - velocity_vec)*(pi->MIN_SPEED - velocity_vec);
+          }
+          break;}
       }
     }
 
@@ -647,5 +669,25 @@ void select_probe(uint8_t num_probes, int8_t angle, float ** u_roll, struct path
 
 }
 
+void init_controls(struct path_integral_t *pi){
 
+  for(int h=0; h < pi->iH; h++) {
+    for(int u=0; u < pi->dimU; u++) {
+      pi->u_exp[h][u] = 0;
+    }
+  }
+}
+
+
+//TODO: Make the computation of the cost a separate function. For the probes the nr of samples is different
+// So a new pi struct should be initialized. This is not ideal
+/*void evaluate_samples(struct path_integral_t *pi, float ** u_roll){
+
+  float noise[pi->N][pi->iH][pi->dimU];
+  float stdv = sqrt(pi->var);
+  float samples_cost[pi->N];
+  struct pi_state_t internal_state, initial_state;
+  float min_cost = 1000000;
+
+}*/
 

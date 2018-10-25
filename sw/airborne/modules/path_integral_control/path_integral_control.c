@@ -32,6 +32,11 @@
 #include "subsystems/abi.h"
 #include "modules/multi/traffic_info.h"
 
+#include "../../subsystems/navigation/waypoints.h"
+#include "navigation.h"
+#include "generated/flight_plan.h"
+
+
 struct path_integral_t pi;
 struct pi_result_t pi_result;
 struct pi_state_t st;
@@ -54,7 +59,7 @@ static void pi_telem_send(struct transport_tx *trans, struct link_device *dev)
 {
   pthread_mutex_lock(&pi_mutex);
   pprz_msg_send_PATH_INTEGRAL(trans, dev, AC_ID,
-                               &pi_result.vel.x, &pi_result.vel.y,  &pi_result.min_cost, &wp.pos_E, &wp.pos_N);
+                               &pi_result.vel.x, &pi_result.vel.y,  &pi_result.min_cost, &wp.pos_E, &wp.pos_N, &pi.TASK, &pi.SAMPLING_METHOD);
   pthread_mutex_unlock(&pi_mutex);
 }
 
@@ -67,9 +72,13 @@ static void relative_ac_telem_send(struct transport_tx *trans, struct link_devic
 
 #endif
 
-
+#ifndef TRAJ_THR
+#define TRAJ_THR 0.4
+#endif
 
 static void *pi_calc_thread(void *arg);
+void set_wp(void);
+void check_wp(void);
 
 /**
  * Initialize the path integral module
@@ -82,15 +91,17 @@ void pi_init(void)
 
   // Update state information
   set_state(&st);
-  set_trajectory(&trajectory);
+
+  set_wp();
+
+  //set_trajectory(&trajectory);
 
   // Initialize the wp
-
-  wp.pos_N = trajectory.wps[0].pos_N;
-  wp.pos_E = trajectory.wps[0].pos_E;
-  wp.wp_index = trajectory.wps[0].wp_index;
-
-
+  //static uint8_t traj[1] = {WP_p0};
+  //printf("WP %d, %d \n",WP_p0, WP_p0);
+  //wp.pos_N = trajectory.wps[0].pos_N;
+  //wp.pos_E = trajectory.wps[0].pos_E;
+  //wp.wp_index = trajectory.wps[0].wp_index;
 
 
 #if PERIODIC_TELEMETRY
@@ -132,6 +143,8 @@ void stop_thread(void)
 static void *pi_calc_thread(void *arg __attribute__((unused)))
 {
   while(true){
+    struct timespec start, finish, finish2;
+    clock_gettime(CLOCK_MONOTONIC, &start);
 
     //Copy the state
     pthread_mutex_lock(&pi_mutex);
@@ -143,10 +156,8 @@ static void *pi_calc_thread(void *arg __attribute__((unused)))
 
     //Compute the optimal controls
     struct pi_result_t temp_result;
-    struct timespec start, finish;
-    float elapsed;
 
-    clock_gettime(CLOCK_MONOTONIC, &start);
+    float elapsed, elapsed2;
 
     bool success = pi_calc_timestep(&pi, &temp_state, &temp_wp, &temp_result);
 
@@ -163,6 +174,19 @@ static void *pi_calc_thread(void *arg __attribute__((unused)))
     elapsed = (finish.tv_sec - start.tv_sec);
     elapsed += (finish.tv_nsec - start.tv_nsec) / 1000000000.0;
     printf("TIME %f\n", elapsed);
+
+    float max_freq = 1/pi.freq;
+    if(elapsed < max_freq){
+      int waiting_time = (int)((max_freq -elapsed)*1000000);
+      usleep(waiting_time);
+      //printf("Max freq %f, waiting time %d\n", max_freq, waiting_time);
+    }
+
+    clock_gettime(CLOCK_MONOTONIC, &finish2);
+    elapsed2 = (finish2.tv_sec - start.tv_sec);
+    elapsed2 += (finish2.tv_nsec - start.tv_nsec) / 1000000000.0;
+    printf("TIME2 %f\n", elapsed2);
+
       }
   return 0;
 }
@@ -184,8 +208,9 @@ void pi_run(void){
   }
 
   set_state(&st);
-  check_wp(&wp, &trajectory);
-
+  if(pi.TASK == 0){
+    check_wp();
+  }
 
 
   pthread_mutex_unlock(&pi_mutex);
@@ -193,11 +218,74 @@ void pi_run(void){
 }
 
 
-/*bool pi_follow_leader(void){
-  bool temp = true;
-  temp &= guidance_v_set_guided_z(-1.0);
-  pthread_mutex_lock(&pi_mutex);
-  temp &= guidance_h_set_guided_vel(pi_result.vel.x,pi_result.vel.y);
-  pthread_mutex_unlock(&pi_mutex);
-  return !temp;
-}*/
+uint8_t pi_follow_wps(void){
+
+  pi.TASK = 0;
+  printf("[task] Task changed to leader following wps");
+  set_wp();
+  init_controls(&pi);
+  return pi.TASK;
+}
+
+
+
+uint8_t pi_follow_leader(void){
+
+  pi.TASK = 1;
+  printf("[task] Task changed to follower");
+  init_controls(&pi);
+  return pi.TASK;
+}
+
+
+uint8_t pi_circle_wp(void){
+
+  pi.TASK = 2;
+  printf("[task] Task changed to circling");
+  set_wp();
+  init_controls(&pi);
+  return pi.TASK;
+}
+
+
+void set_wp(void){
+
+  if(pi.TASK == 0){
+    uint8_t target_wp[4] = {WP_p0,WP_p1,WP_p2,WP_p3};
+    for(int i = 0; i < 4; i++){
+      trajectory.wps[i].pos_N = waypoint_get_x(target_wp[i]);
+      trajectory.wps[i].pos_E = waypoint_get_y(target_wp[i]);
+      trajectory.wps[i].wp_index = i;
+    }
+    wp.pos_N = trajectory.wps[0].pos_N;
+    wp.pos_E = trajectory.wps[0].pos_E;
+    wp.wp_index = trajectory.wps[0].wp_index;
+
+  }
+  else if(pi.TASK == 1){}
+  else if(pi.TASK == 2){
+    wp.pos_N = waypoint_get_x(WP_centre);
+    wp.pos_E = waypoint_get_y(WP_centre);
+  }
+}
+
+void check_wp(void){
+
+  struct EnuCoor_i current_wp = {wp.pos_E/0.0039063, wp.pos_N/0.0039063, 1/0.0039063};
+  float dist = get_dist2_to_point(&current_wp);
+  if(dist < TRAJ_THR*TRAJ_THR){
+    if(wp.wp_index < 3){
+      int index = wp.wp_index + 1;
+      wp.pos_N = trajectory.wps[index].pos_N;
+      wp.pos_E = trajectory.wps[index].pos_E;
+      wp.wp_index = index;
+    }
+    else{
+      int index2 = 0;
+      wp.pos_N = trajectory.wps[index2].pos_N;
+      wp.pos_E = trajectory.wps[index2].pos_E;
+      wp.wp_index = index2;
+    }
+  }
+
+}
