@@ -47,13 +47,13 @@
 #define PI_R 1
 #endif
 #ifndef PI_SAMPLES
-#define PI_SAMPLES 300
+#define PI_SAMPLES 100
 #endif
 #ifndef PI_COLLISION_DISTANCE
 #define PI_COLLISION_DISTANCE 1//0.25//2.25
 #endif
 #ifndef PI_COHESION_DISTANCE
-#define PI_COHESION_DISTANCE 4////6.25
+#define PI_COHESION_DISTANCE 2.25////6.25
 #endif
 #ifndef PI_COLLISION_PENALTY
 #define PI_COLLISION_PENALTY 11//40//10
@@ -101,7 +101,7 @@
 #define PI_TASK 0
 #endif
 #ifndef PI_SAMPLING_METHOD
-#define PI_SAMPLING_METHOD 1
+#define PI_SAMPLING_METHOD 0
 #endif
 
 
@@ -207,7 +207,7 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
 
       {printf("[sampling] Sampling method 1.\n");
       int8_t angle = 30;
-      uint8_t num_probes = 7;
+      uint8_t num_probes = 13;
       MAKE_MATRIX_PTR(u_roll_ptr, u_roll, pi->iH);
       float best_probe_vel[pi->dimU];
       select_probe(num_probes, angle, u_roll_ptr, pi, st, wp, &best_probe_vel[0]);
@@ -226,7 +226,6 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
       initial_state.vel[0] = best_probe_vel[0];
       initial_state.vel[1] = best_probe_vel[1];
 
-      pi->N = 100;
       break;}
    }
 
@@ -237,10 +236,10 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
     samples_cost[n] = 0;
 
     for (uint8_t i = 0; i< pi->dimU; i++){
-      internal_state.pos[i] = initial_state.pos[i];   //st->pos[i];
-      internal_state.vel[i] = initial_state.vel[i];   //st->vel[i];
-      internal_state.pos_rel[i] = initial_state.pos_rel[i];   //st->pos_rel[i];
-      internal_state.vel_rel[i] = initial_state.vel_rel[i];   //st->vel_rel[i];
+      internal_state.pos[i] = initial_state.pos[i];//st->pos[i]; //initial_state.pos[i];
+      internal_state.vel[i] = initial_state.vel[i];//st->vel[i];
+      internal_state.pos_rel[i] = initial_state.pos_rel[i];//st->pos_rel[i];
+      internal_state.vel_rel[i] = initial_state.vel_rel[i];//st->vel_rel[i];
     }
     //printf("State %f, %f\n",internal_state.pos[0], internal_state.vel[0]);
     float applied_vel_n = internal_state.vel[0];
@@ -295,6 +294,10 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
        samples_cost[n] += exp( pi->OUTSIDECZ_PENALTY* outside);
       }
 
+     float outside =  internal_state.pos[0]*internal_state.pos[0] + internal_state.pos[1]*internal_state.pos[1];
+     samples_cost[n] += 10/((6.25-outside)*(6.25-outside));
+
+
      float dist_unit = 0;
      float dist_wp = 0;
      switch (pi->TASK){
@@ -313,11 +316,11 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
         }
 
         // Collision cost
-        //for(int a=0; a < pi->units-1; a++){
+        for(int a=0; a < pi->units-1; a++){
           dist_unit = (internal_state.pos[0]-  internal_state.pos_rel[0]) * (internal_state.pos[0]- internal_state.pos_rel[0]) + (internal_state.pos[1]- internal_state.pos_rel[1]) * (internal_state.pos[1]- internal_state.pos_rel[1]);
           if(dist_unit > pi->COLLISION_DISTANCE ){}
           else{ samples_cost[n] += exp(pi->COLLISION_PENALTY *(pi->COLLISION_DISTANCE - dist_unit));}
-        //}
+        }
 
          break;}
 
@@ -329,14 +332,21 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
           // Cohesion cost
           float dist_leader = (internal_state.pos[0]- internal_state.pos_rel[0]) * (internal_state.pos[0]- internal_state.pos_rel[0]) + (internal_state.pos[1]- internal_state.pos_rel[1]) * (internal_state.pos[1]- internal_state.pos_rel[1]);
           if(dist_leader < pi->COHESION_DISTANCE ){}
-          else{samples_cost[n] += exp(pi->COHESION_PENALTY *(dist_leader - pi->COHESION_DISTANCE));}
+          else{
+            samples_cost[n] += exp(pi->COHESION_PENALTY *(dist_leader - pi->COHESION_DISTANCE));
+            //samples_cost[n] += (100 *(dist_leader - pi->COHESION_DISTANCE));
+          }
 
           // Collision cost
           //for(int a=0; a < pi->units-1; a++){
-            //float dist_unit = (internal_state.pos[0]-  internal_state.pos_rel[0+2*a]) * (internal_state.pos[0]- internal_state.pos_rel[0+2*a]) + (internal_state.pos[1]- internal_state.pos_rel[0+2*a]) * (internal_state.pos[1]- internal_state.pos_rel[0+2*a]);
-            if(dist_leader > pi->COLLISION_DISTANCE ){}
-            else{ samples_cost[n] += exp(pi->COLLISION_PENALTY *(pi->COLLISION_DISTANCE - dist_leader));}
-            //printf("Diff dist leader %f, diff dist unit %f \n", dist_leader - pi->COHESION_DISTANCE, pi->COLLISION_DISTANCE - dist_unit );
+          //float dist_unit = (internal_state.pos[0]-  internal_state.pos_rel[0+2*a]) * (internal_state.pos[0]- internal_state.pos_rel[0+2*a]) + (internal_state.pos[1]- internal_state.pos_rel[0+2*a]) * (internal_state.pos[1]- internal_state.pos_rel[0+2*a]);
+          if(dist_leader > pi->COLLISION_DISTANCE ){}
+          else{
+            samples_cost[n] += exp(pi->COLLISION_PENALTY *(pi->COLLISION_DISTANCE - dist_leader));
+            //samples_cost[n] += (1000*(pi->COLLISION_DISTANCE - dist_leader));
+          }
+          //printf("Diff dist leader %f, diff dist unit %f \n", dist_leader - pi->COHESION_DISTANCE, pi->COLLISION_DISTANCE - dist_unit );
+
 
           // Parallel cost
             //float cross_product_3 = fabs(internal_state.pos[0] * internal_state.pos_rel[1+2*a] - internal_state.pos[1] * internal_state.pos_rel[0+2*a]);
@@ -364,10 +374,46 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
           // Collision cost
           //for(int a=0; a < pi->units-1; a++){
             dist_unit = (internal_state.pos[0]-  internal_state.pos_rel[0]) * (internal_state.pos[0]- internal_state.pos_rel[0]) + (internal_state.pos[1]- internal_state.pos_rel[1]) * (internal_state.pos[1]- internal_state.pos_rel[1]);
+            samples_cost[n] -= dist_unit*pi->dh;
             if(dist_unit > pi->COLLISION_DISTANCE ){}
-            else{ samples_cost[n] += exp(pi->COLLISION_PENALTY *(pi->COLLISION_DISTANCE - dist_unit));}
+            else{
+              samples_cost[n] += exp(pi->COLLISION_PENALTY *(pi->COLLISION_DISTANCE - dist_unit));
+            }
           //}
           break;}
+
+        case 3:
+        {
+          //printf("[task] Cat task selected\n");
+          // Minimum velocity cost
+          /*float velocity_vec = applied_vel_n * applied_vel_n + applied_vel_e * applied_vel_e;
+          if(velocity_vec > pi->MIN_SPEED){}
+          else{
+            samples_cost[n] += pi->MIN_SPEED_PENALTY*(pi->MIN_SPEED - velocity_vec)*(pi->MIN_SPEED - velocity_vec);}
+*/
+          // Follow mouse's position
+          float dist_mouse = (internal_state.pos[0]- internal_state.pos_rel[0]) * (internal_state.pos[0]- internal_state.pos_rel[0]) + (internal_state.pos[1]- internal_state.pos_rel[1]) * (internal_state.pos[1]- internal_state.pos_rel[1]);
+          samples_cost[n] += pi->TARGET_PENALTY *pi->dh * dist_mouse;
+
+          break;
+        }
+
+        case 4:
+        {
+          //printf("[task] Mouse task selected\n");
+
+          // Minimum velocity cost
+          //float velocity_vec = applied_vel_n * applied_vel_n + applied_vel_e * applied_vel_e;
+          //if(velocity_vec > pi->MIN_SPEED){}
+          //else{
+          //  samples_cost[n] += pi->MIN_SPEED_PENALTY*(pi->MIN_SPEED - velocity_vec)*(pi->MIN_SPEED - velocity_vec);}
+
+          // Escape cat
+          float dist_cat = (internal_state.pos[0]- internal_state.pos_rel[0]) * (internal_state.pos[0]- internal_state.pos_rel[0]) + (internal_state.pos[1]- internal_state.pos_rel[1]) * (internal_state.pos[1]- internal_state.pos_rel[1]);
+          samples_cost[n] += (pi->TARGET_PENALTY*pi->dh)/dist_cat;
+
+          break;
+        }
 
       }
     }
@@ -376,32 +422,32 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
 
   }
 
-  float mean_cost = cost_sum/pi->N;
-  result->min_cost = min_cost;
+  //float mean_cost = cost_sum/pi->N;
+
   //printf("Min cost %f\n", min_cost);
   //Compute weight of all samples N
   float w[pi->N];
   float w_sum = 0;
-  float sample_var = 0;
+  //float sample_var = 0;
   for (int n=0; n < pi->N; ){
     w[n] = exp(-(samples_cost[n] - min_cost)*inv_lambda);
-    sample_var += (samples_cost[n] - mean_cost) * (samples_cost[n] - mean_cost);
+    //sample_var += (samples_cost[n] - mean_cost) * (samples_cost[n] - mean_cost);
     w_sum += w[n]; n++;
     w[n] = exp(-(samples_cost[n] - min_cost)*inv_lambda);
-    sample_var += (samples_cost[n] - mean_cost) * (samples_cost[n] - mean_cost);
+    //sample_var += (samples_cost[n] - mean_cost) * (samples_cost[n] - mean_cost);
     w_sum += w[n]; n++;
     w[n] = exp(-(samples_cost[n] - min_cost)*inv_lambda);
-    sample_var += (samples_cost[n] - mean_cost) * (samples_cost[n] - mean_cost);
+    //sample_var += (samples_cost[n] - mean_cost) * (samples_cost[n] - mean_cost);
     w_sum += w[n]; n++;
     w[n] = exp(-(samples_cost[n] - min_cost)*inv_lambda);
-    sample_var += (samples_cost[n] - mean_cost) * (samples_cost[n] - mean_cost);
+    //sample_var += (samples_cost[n] - mean_cost) * (samples_cost[n] - mean_cost);
     w_sum += w[n]; n++;
     w[n] = exp(-(samples_cost[n] - min_cost)*inv_lambda);
-    sample_var += (samples_cost[n] - mean_cost) * (samples_cost[n] - mean_cost);
+    //sample_var += (samples_cost[n] - mean_cost) * (samples_cost[n] - mean_cost);
     w_sum += w[n]; n++;
   }
 
-  printf("[variance] %f\n", sample_var);
+  //printf("[variance] %f\n", sample_var);
 
   float internal_controls[pi->iH][pi->dimU];
   for(int h = 0; h < pi->iH; h++){
@@ -409,13 +455,19 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
     internal_controls[h][1] = 0;
   }
 
+  float ESS_sum =0;
+  float ESS = 0;
   for (int n=0; n < pi->N; n++ ){
     w[n] = w[n]/w_sum;
+    ESS_sum += (w[n]*w[n]);
     for(int h = 0; h < pi->iH; h++){
       internal_controls[h][0] += w[n] * noise[n][h][0];
       internal_controls[h][1] += w[n] * noise[n][h][1];
     }
    }
+
+  ESS = 1/ESS_sum;
+  result->variance = ESS;
 
   for(int h = 0; h < pi->iH; h++){
     internal_controls[h][0] /= pi->dh;

@@ -59,7 +59,7 @@ static void pi_telem_send(struct transport_tx *trans, struct link_device *dev)
 {
   pthread_mutex_lock(&pi_mutex);
   pprz_msg_send_PATH_INTEGRAL(trans, dev, AC_ID,
-                               &pi_result.vel.x, &pi_result.vel.y,  &pi_result.min_cost, &wp.pos_E, &wp.pos_N, &pi.TASK, &pi.SAMPLING_METHOD);
+                               &pi_result.vel.x, &pi_result.vel.y,  &pi_result.variance, &wp.pos_E, &wp.pos_N, &pi.TASK, &pi.SAMPLING_METHOD);
   pthread_mutex_unlock(&pi_mutex);
 }
 
@@ -168,12 +168,12 @@ static void *pi_calc_thread(void *arg __attribute__((unused)))
     pi_got_result = success;
     pthread_mutex_unlock(&pi_mutex);
 
-    printf("CONTROLS 0: %f , Controls 1: %f\n", temp_result.vel.x, temp_result.vel.y);
+    //printf("CONTROLS 0: %f , Controls 1: %f\n", temp_result.vel.x, temp_result.vel.y);
 
     clock_gettime(CLOCK_MONOTONIC, &finish);
     elapsed = (finish.tv_sec - start.tv_sec);
     elapsed += (finish.tv_nsec - start.tv_nsec) / 1000000000.0;
-    printf("TIME %f\n", elapsed);
+    //printf("TIME %f\n", elapsed);
 
     float max_freq = 1/pi.freq;
     if(elapsed < max_freq){
@@ -199,18 +199,29 @@ void pi_run(void){
 
   pthread_mutex_lock(&pi_mutex);
 
-  if (pi_got_result){
-    uint32_t now_ts = get_sys_time_usec();
-    AbiSendMsgPATH_INTEGRAL(PATH_INTEGRAL_ID, now_ts,
-        pi_result.vel.x,
-        pi_result.vel.y);
-    pi_got_result = false;
+  set_state(&st);
+  check_wp();
+
+  if(pi.TASK == 0){
+   // check_wp();
   }
 
-  set_state(&st);
-  if(pi.TASK == 0){
-    check_wp();
+  else if(pi.TASK == 3 || pi.TASK == 4){
+    float THR = 0.3;
+    float dist_cat_mouse = (st.pos[0]- st.pos_rel[0]) * (st.pos[0]- st.pos_rel[0]) + (st.pos[1]- st.pos_rel[1] ) * (st.pos[1]- st.pos_rel[1]);
+    if(dist_cat_mouse < THR*THR){
+      pi_result.vel.x = 0.0;
+      pi_result.vel.y = 0.0;
+    }
   }
+
+    if (pi_got_result){
+      uint32_t now_ts = get_sys_time_usec();
+      AbiSendMsgPATH_INTEGRAL(PATH_INTEGRAL_ID, now_ts,
+          pi_result.vel.x,
+          pi_result.vel.y);
+      pi_got_result = false;
+    }
 
 
   pthread_mutex_unlock(&pi_mutex);

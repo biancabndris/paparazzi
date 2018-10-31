@@ -1,9 +1,10 @@
 <!DOCTYPE flight_plan SYSTEM "../flight_plan.dtd">
 
-<flight_plan alt="1.0" ground_alt="0" lat0="51.990634" lon0="4.376789" max_dist_from_home="5" name="PI_guided_leader" security_height="0.3">
+<flight_plan alt="1.0" ground_alt="0" lat0="51.990634" lon0="4.376789" max_dist_from_home="8" name="PI_guided_leader" security_height="0.3">
   <header>
 #include "autopilot_guided.h"
 #include "subsystems/datalink/datalink.h"
+#include "subsystems/ahrs.h"
 
 // Useful Combination of the flags fir the autopilot_guided_update
 #define GUIDED_FLAG_XY_VEL_BODY GUIDED_FLAG_XY_BODY|GUIDED_FLAG_XY_VEL
@@ -24,24 +25,43 @@ static inline void obstacle_detection_cb(uint8_t sender_id __attribute__((unused
 #endif
   </header>
   <waypoints>
-    <waypoint name="HOME"      x="0.0"  y="0.0"/>
-    <waypoint name="STDBY"     x="0.0"  y="0.0"/>
-    <waypoint name="p0"        x="-1.5" y="-1"/>
-    <waypoint name="p1"        x="-1.5" y="1"/>
-    <waypoint name="p2"        x="1.5"  y="1"/>
-    <waypoint name="p3"        x="1.5"  y="-1"/>
-    <waypoint name="centre"    x="0.0"  y="0.0"/>
+    <waypoint name="HOME"      x="0.0"         y = "0.0"  />
+    <waypoint name="STDBY"     x="0.0"         y = "0.0"  />
+    <waypoint name="p0"        x="1.0"        y = "1.0" />
+    <waypoint name="p1"        x="-1.0"        y = "1.0"  />
+    <waypoint name="p2"        x="-1.0"	       y = "-1.0"  />
+    <waypoint name="p3"        x="1.0"         y = "-1.0" />
+    <waypoint name="centre"    x="0.0"         y = "0.0"  />
+    <waypoint lat="51.9905836" lon="4.3767729" name="_CZ1"/>
+    <waypoint lat="51.9906365" lon="4.3767138" name="_CZ2"/>
+    <waypoint lat="51.990680"  lon="4.376805"  name="_CZ3"/>
+    <waypoint lat="51.9906226" lon="4.3768699" name="_CZ4"/>
   </waypoints>
+  <sectors>
+    <sector color="red" name="CyberZoo">
+      <corner name="_CZ1"/>
+      <corner name="_CZ2"/>
+      <corner name="_CZ3"/>
+      <corner name="_CZ4"/>
+    </sector>
+  </sectors>
   <variables>
 	  <variable var="desired_heading" init="0.0f" type="float" min="0." max="10." step="0.1"/>
 	  <variable var="turn_angle" init="90.0f" type="float" min="-180" max="180" step="1"/>
-	  <variable var="turn_rate" init="0.5f" type="float" min="0." max="10." step="0.1"/>
+	  <variable var="turn_rate" init=".5f" type="float" min="0." max="10." step="0.1"/>
    	  <variable var="climb_descent_vel" init="0.3f" type="float" min="0." max="1" step="0.1"/>
     	  <variable var="forward_vel" init="0.3f" type="float" min="0." max="2" step="0.1"/>
-	  <variable var="nominal_alt" init="1.0f" type="float" min="0." max="10." step="0.1"/>
+	  <variable var="nominal_alt" init="0.5f" type="float" min="0." max="10." step="0.1"/>
 	  <variable var="task" init="0" type="int" min="0" max="2" step="1"/>
 	  <abi_binding name="PATH_INTEGRAL" vars="id,opt_vel_x, opt_vel_y"/>
    </variables>
+
+  <exceptions>
+    <!-- Out of bounds -->
+    <exception cond="!InsideCyberZoo(GetPosX(), GetPosY())" deroute="Land"/>
+    <!-- High altitude -->
+    <exception cond="(GetPosAlt() > 4.5)" deroute="Land"/>
+  </exceptions>
 
   <blocks>
     <block name="FPInit">
@@ -57,8 +77,6 @@ static inline void obstacle_detection_cb(uint8_t sender_id __attribute__((unused
       <while cond="1"/>
     </block>
 
- <!--Take off-->
-
     <block name="Take off">
       <set var="desired_heading" value="stateGetNedToBodyEulers_f()->psi"/>
       <call_once fun="autopilot_guided_update(GUIDED_FLAG_XY_OFFSET_Z_VEL,0.,0.,-climb_descent_vel,desired_heading)"/>
@@ -68,32 +86,29 @@ static inline void obstacle_detection_cb(uint8_t sender_id __attribute__((unused
     </block>
 
 <!-- Follow WPs (Leader)-->
-
     <block name="Follow_wps">
       <call_once fun="pi_follow_wps()"/>
       <set var="task" value="pi_follow_wps()"/>
       <while cond="LessThan(block_time,120)">
 	<call_once fun="guidance_h_set_guided_vel(opt_vel_x,opt_vel_y)"/>
       </while>
-     <exception cond="stateGetBodyRates_f()->r>0.1" deroute="Fix yaw"/>
+     <!--exception cond="stateGetBodyRates_f()->r>0.1" deroute="Fix yaw"/-->
      <deroute block="Hover"/>
     </block>
 
 
 <!-- Follow Leader-->
-
     <block name="Follow_leader">
       <call_once fun="pi_follow_leader()"/>
       <set var="task" value="pi_follow_leader()"/>
       <while cond="LessThan(block_time,120)">
 	<call_once fun="guidance_h_set_guided_vel(opt_vel_x,opt_vel_y)"/>
       </while>
-     <exception cond="stateGetBodyRates_f()->r>0.1" deroute="Fix yaw"/>
+     <!--exception cond="stateGetBodyRates_f()->r>0.1" deroute="Fix yaw"/-->
      <deroute block="Hover"/>
     </block>
 
 <!-- Circling -->
-
     <block name="Circling">
       <call_once fun="pi_circle_wp()"/>
       <set var="task" value="pi_circle_wp()"/>
@@ -104,8 +119,26 @@ static inline void obstacle_detection_cb(uint8_t sender_id __attribute__((unused
      <deroute block="Hover"/>
     </block>
 
-<!-- Fix yaw -->
+    <block name="Cat">
+       <set var="task" value="3"/>
+      <while cond="LessThan(block_time,120)">
+	<call_once fun="guidance_h_set_guided_vel(opt_vel_x,opt_vel_y)"/>
+      </while>
+      <exception cond="stateGetBodyRates_f()->r>0.1" deroute="Fix yaw"/>
+     <deroute block="Hover"/>
+    </block>
 
+    <block name="Mouse">
+       <set var="task" value="4"/>
+      <while cond="LessThan(block_time,120)">
+	<call_once fun="guidance_h_set_guided_vel(opt_vel_x,opt_vel_y)"/>
+      </while>
+      <exception cond="stateGetBodyRates_f()->r>0.1" deroute="Fix yaw"/>
+     <deroute block="Hover"/>
+    </block>
+
+
+<!-- Fix yaw -->
     <block name="Fix yaw">
       <call_once fun="guidance_h_set_guided_heading_rate(0.0f)" />
       <while cond="LessThan(stage_time,1)"/>
@@ -118,9 +151,14 @@ static inline void obstacle_detection_cb(uint8_t sender_id __attribute__((unused
       <while cond="task == 2">
       	<deroute block="Circling"/>
       </while>
-    </block>
+      <while cond="task == 3">
+      	<deroute block="Cat"/>
+      </while>
+      <while cond="task == 4">
+      	<deroute block="Mouse"/>
+      </while>
 
-<!-- Hover: -->
+    </block>
 
     <block name="Hover">
       <set var="desired_heading" value="stateGetNedToBodyEulers_f()->psi"/>
@@ -129,9 +167,6 @@ static inline void obstacle_detection_cb(uint8_t sender_id __attribute__((unused
       </while>
       <deroute block="Land"/>
     </block>
-
-
-<!-- Land -->
 
     <block name="Land">
       <set var="desired_heading" value="stateGetNedToBodyEulers_f()->psi"/>
