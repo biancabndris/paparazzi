@@ -109,8 +109,8 @@
 // Internal functions
 void rotate(int8_t angle, float ** Rmatrix);
 void compute_probes(int8_t angle, uint8_t num_probes, float * v_init, float ** VProbes);
-void select_probe(uint8_t num_probes, int8_t angle, float ** u_roll, struct path_integral_t *pi, struct pi_state_t *st, struct pi_wp_t *wp, float * best_probe_vel);
-
+void select_probe(uint8_t sampling_method, uint8_t num_probes, int8_t angle, float ** u_roll, struct path_integral_t *pi, struct pi_state_t *st, struct pi_wp_t *wp, float * best_probe_vel);
+void compute_control_probes(int8_t angle, uint8_t num_probes, uint8_t probe, float * u_init, float ** UProbes);
 
 void pi_calc_init(struct path_integral_t *pi){
 
@@ -198,22 +198,23 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
 
     case 0 :
 
-      {printf("[sampling] Sampling method 0.\n");
-      //printf("[sampling] Initial U %f, %f\n",u_roll[0][0], u_roll[0][1]);
+      {//printf("[sampling] Sampling method 0.\n");
+         printf("[sampling] Initial U %f, %f\n",u_roll[0][0], u_roll[0][1]);
 
       break;}
 
     case 1 :
 
-      {printf("[sampling] Sampling method 1.\n");
+      {//printf("[sampling] Sampling method 1.\n");
+        printf("[sampling] Initial U 1 %f, %f\n",u_roll[0][0], u_roll[0][1]);
       int8_t angle = 30;
-      uint8_t num_probes = 13;
+      uint8_t num_probes = 7;
       MAKE_MATRIX_PTR(u_roll_ptr, u_roll, pi->iH);
       float best_probe_vel[pi->dimU];
-      select_probe(num_probes, angle, u_roll_ptr, pi, st, wp, &best_probe_vel[0]);
+      select_probe(pi->SAMPLING_METHOD, num_probes, angle, u_roll_ptr, pi, st, wp, &best_probe_vel[0]);
 
       //printf("[sampling] Best probe %f, %f \n",best_probe_vel[0], best_probe_vel[1]);
-      //printf("[sampling] Initial U %f, %f\n",u_roll[0][0], u_roll[0][1]);
+      printf("[sampling] Initial U 2 %f, %f\n",u_roll[0][0], u_roll[0][1]);
 
       if(u_roll[0][0] != 0.0f){
         for(int h=0; h< pi->iH; h++){
@@ -221,12 +222,31 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
           u_roll[h][1] -= (best_probe_vel[1] - initial_state.vel[1]);
         }
       }
+      //printf("[sampling] Adjusted U %f, %f\n",u_roll[0][0], u_roll[0][1]);
 
       //printf("[sampling] Adjusted U %f, %f, diff %f, initial vel %f \n",u_roll[0][0], u_roll[0][1],(best_probe_vel[0] - initial_state.vel[0]), initial_state.vel[0]);
       initial_state.vel[0] = best_probe_vel[0];
       initial_state.vel[1] = best_probe_vel[1];
 
       break;}
+
+    case 2 :
+
+          {//printf("[sampling] Sampling method 2.\n");
+          int8_t angle = 30;
+          uint8_t num_probes = 7;
+          MAKE_MATRIX_PTR(u_roll_ptr, u_roll, pi->iH);
+          float best_probe_vel[pi->dimU];
+          select_probe(pi->SAMPLING_METHOD,num_probes, angle, u_roll_ptr, pi, st, wp, &best_probe_vel[0]);
+
+          //printf("[sampling] Best probe %f, %f \n",best_probe_vel[0], best_probe_vel[1]);
+          //printf("[sampling] Initial U %f, %f\n",u_roll[0][0], u_roll[0][1]);
+
+          //printf("[sampling] Adjusted U %f, %f, diff %f, initial vel %f \n",u_roll[0][0], u_roll[0][1],(best_probe_vel[0] - initial_state.vel[0]), initial_state.vel[0]);
+          initial_state.vel[0] = best_probe_vel[0];
+          initial_state.vel[1] = best_probe_vel[1];
+
+          break;}
    }
 
 
@@ -478,6 +498,9 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
   float ned_vel_n =  st->vel[0] + (u_roll[0][0] + internal_controls[0][0])*(dt);
   float ned_vel_e =  st->vel[1] + (u_roll[0][1] + internal_controls[0][1])*(dt);
 
+  //float ned_vel_n =  st->vel[0] + ((initial_state.vel[0] - st->vel[0])/dt + (u_roll[0][0] + internal_controls[0][0]))*(dt);
+  //float ned_vel_e =  st->vel[1] + ((initial_state.vel[1] - st->vel[1])/dt + (u_roll[0][1] + internal_controls[0][1]))*(dt);
+
   result->vel.x = ned_vel_n;
   result->vel.y = ned_vel_e;
 
@@ -514,6 +537,48 @@ void rotate(int8_t angle, float ** Rmatrix){
   Rmatrix[1][0] = sinf(radians);
   Rmatrix[1][1] = cosf(radians);
 }
+
+
+
+/**
+ * Compute velocity probes by rotating a given velocity vector
+ * @param[in]  angle [degrees]
+ * @param[in]  num_probes
+ * @param[in]  * v_init
+ * @param[out]  **VProbes
+ */
+void compute_control_probes(int8_t angle, uint8_t num_probes, uint8_t probe, float * u_init, float ** UProbes){
+
+  float _Rmatrix[2][2];
+  MAKE_MATRIX_PTR(Rmatrix, _Rmatrix, 2);
+  float _u[1][2] = { {*u_init, *(u_init+1)} };
+  MAKE_MATRIX_PTR(u, _u, 1);
+  float _CC[1][2];
+  MAKE_MATRIX_PTR(CC, _CC, 1);
+  float _C[1][2];
+  MAKE_MATRIX_PTR(C,_C, 1);
+
+  int half_probes = (num_probes-1)/2;
+  if(probe < half_probes){
+    rotate((probe+1)*angle, Rmatrix);
+    MAT_MUL(1,2,2, CC, u, Rmatrix);
+    UProbes[0][0] = CC[0][0];
+    UProbes[0][1] = CC[0][1];
+  }
+  else if(probe > half_probes){
+    rotate(-(probe+1)*angle, Rmatrix);
+    MAT_MUL(1,2,2, C, u, Rmatrix );
+    UProbes[0][0] = C[0][0];
+    UProbes[0][1] = C[0][1];
+  }
+
+  if(probe == num_probes-1){
+    UProbes[0][0] = _u[0][0];
+    UProbes[0][1] = _u[0][1];
+  }
+}
+
+
 
 
 /**
@@ -563,15 +628,17 @@ void compute_probes(int8_t angle, uint8_t num_probes, float * v_init, float ** V
  * @param[in]  *wp  waypoint given to the leader
  * @param[out] best_probe_velocity the velocity of the probe with the least cost
  */
-void select_probe(uint8_t num_probes, int8_t angle, float ** u_roll, struct path_integral_t *pi, struct pi_state_t *st, struct pi_wp_t *wp , float * best_probe_vel){
+void select_probe(uint8_t sampling_method ,uint8_t num_probes, int8_t angle, float ** u_roll, struct path_integral_t *pi, struct pi_state_t *st, struct pi_wp_t *wp , float * best_probe_vel){
 
   float samples_cost_probes[num_probes];
-  struct pi_state_t internal_state_probes, initial_state;
+  struct pi_state_t internal_state_probes;
+  struct pi_state_t initial_state;
   float min_cost = 1000000;
-  uint8_t min_cost_index = 0;
+  uint8_t min_cost_index = -1;
   float half_dh = pi->dh*0.5;
   float u_horizon[pi->iH][pi->dimU];
 
+  //printf("Sampling method %d\n", sampling_method);
   //TODO: Send this to the function instead of doing it again
   for (int i = 0; i< pi->dimU; i++){
     initial_state.pos[i] = st->pos[i];
@@ -594,28 +661,51 @@ void select_probe(uint8_t num_probes, int8_t angle, float ** u_roll, struct path
   for(uint8_t p = 0; p < num_probes; p++){
 
     samples_cost_probes[p] = 0;
-    for (int i = 0; i< pi->dimU; i++){
-      internal_state_probes.pos[i] = initial_state.pos[i];
-      internal_state_probes.vel[i] = _VProbes[p][i];
-      internal_state_probes.pos_rel[i] = initial_state.pos_rel[i];
-      internal_state_probes.vel_rel[i] = initial_state.vel_rel[i];
-    }
+    //for (int i = 0; i< pi->dimU; i++){
+      internal_state_probes.pos[0] = initial_state.pos[0];
+      internal_state_probes.vel[0] = _VProbes[p][0];
+      internal_state_probes.pos_rel[0] = initial_state.pos_rel[0];
+      internal_state_probes.vel_rel[0] = initial_state.vel_rel[0];
 
-    for(uint8_t h = 0; h > pi->iH; h++){
+      internal_state_probes.pos[1] = initial_state.pos[0];
+      internal_state_probes.vel[1] = _VProbes[p][0];
+      internal_state_probes.pos_rel[1] = initial_state.pos_rel[0];
+      internal_state_probes.vel_rel[1] = initial_state.vel_rel[0];
+    //}
 
-      if(u_horizon[0][0] != 0.0f){
-        u_horizon[h][0] = u_roll[h][0] - (_VProbes[p][0] - initial_state.vel[0]);
-        u_horizon[h][1] = u_roll[h][1] - (_VProbes[p][1] - initial_state.vel[1]);
+    for(int h = 0; h < pi->iH; h++){
+      switch(sampling_method){
+        case 1:{
+
+        if(u_horizon[0][0] != 0.0f){
+          u_horizon[h][0] = u_roll[h][0] - (_VProbes[p][0] - initial_state.vel[0]);
+          u_horizon[h][1] = u_roll[h][1] - (_VProbes[p][1] - initial_state.vel[1]);
+        }
+        else{
+          u_horizon[h][0] = u_roll[h][0];
+          u_horizon[h][1] = u_roll[h][1];
+        }
+
+        //printf("3. Adjust control: u_hor %f, u_roll %f Vprobe %f,initial vel %f \n", u_horizon[h][0], u_roll[h][0], _VProbes[p][0], initial_state.vel[0]);
+
+        internal_state_probes.vel[0] += u_horizon[h][0]*pi->dh;
+        internal_state_probes.vel[1] += u_horizon[h][1]*pi->dh;
+        break;
+        }
+        case 2:{
+
+        float _UProbes[1][pi->dimU];
+        MAKE_MATRIX_PTR(UProbes, _UProbes, num_probes);
+        //compute_probes(angle, num_probes, &u_roll[h][0] , UProbes);
+
+        compute_control_probes(angle, num_probes, p , &u_roll[h][0],UProbes);
+        //printf("Probe %d, control %f, %f\n", p, UProbes[0][0], UProbes[0][1]);
+
+        internal_state_probes.vel[0] += UProbes[0][0]*pi->dh;
+        internal_state_probes.vel[1] += UProbes[0][1]*pi->dh;
+        break;
+        }
       }
-      else{
-        u_horizon[h][0] = u_roll[h][0];
-        u_horizon[h][1] = u_roll[h][1];
-      }
-
-      //printf("3. Adjust control: u_hor %f, u_roll %f Vprobe %f,initial vel %f \n", u_horizon[h][0], u_roll[h][0], _VProbes[p][0], initial_state.vel[0]);
-
-      internal_state_probes.vel[0] += u_horizon[h][0]*pi->dh;
-      internal_state_probes.vel[1] += u_horizon[h][1]*pi->dh;
 
       // Check max velocity
       Bound(internal_state_probes.vel[0],-pi->MAX_SPEED, pi->MAX_SPEED);
@@ -713,6 +803,21 @@ void select_probe(uint8_t num_probes, int8_t angle, float ** u_roll, struct path
     if(samples_cost_probes[p] < min_cost){
       min_cost = samples_cost_probes[p];
       min_cost_index = p;
+    }
+  }
+  //printf("Min cost index %d\n", min_cost_index);
+  if(sampling_method == 2 && min_cost_index > -1){
+    for(int h=0;h< pi->iH; h++){
+
+      float _UProbes_new[1][pi->dimU];
+      MAKE_MATRIX_PTR(UProbes_new, _UProbes_new, num_probes);
+      //printf("Initial control %f, %f\n", u_roll[h][0], u_roll[h][1]);
+
+      compute_control_probes(angle, num_probes, min_cost_index , &u_roll[h][0],UProbes_new);
+      u_roll[h][0] = UProbes_new[0][0];
+      u_roll[h][1] = UProbes_new[0][1];
+      //printf("UProbes control %f, %f\n", UProbes_new[0][0], UProbes_new[0][0]);
+
     }
   }
 
