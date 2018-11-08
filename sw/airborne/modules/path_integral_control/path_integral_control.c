@@ -66,7 +66,7 @@ static void pi_telem_send(struct transport_tx *trans, struct link_device *dev)
 static void relative_ac_telem_send(struct transport_tx *trans, struct link_device *dev)
 {
   pthread_mutex_lock(&pi_mutex);
-  pprz_msg_send_RELATIVE_AC(trans, dev, AC_ID, &st.pos_rel[0], &st.pos_rel[1], &st.vel_rel[0], &st.vel_rel[1]);
+  pprz_msg_send_RELATIVE_AC(trans, dev, AC_ID, &st.pos_rel[0].N, &st.pos_rel[0].E, &st.vel_rel[0].N, &st.vel_rel[0].E, &st.pos_rel[0].N, &st.pos_rel[0].E, &st.vel_rel[0].N, &st.vel_rel[0].E,&st.pos_rel[0].N, &st.pos_rel[0].E, &st.vel_rel[0].N, &st.vel_rel[0].E);
   pthread_mutex_unlock(&pi_mutex);
 }
 
@@ -80,6 +80,9 @@ static void *pi_calc_thread(void *arg);
 void set_wp(void);
 void check_wp(void);
 
+int counter, counter_probe;
+float delayed_N = 0.0;
+float delayed_E = 0.0;
 /**
  * Initialize the path integral module
  */
@@ -90,10 +93,11 @@ void pi_init(void)
   pi_got_result = false;
 
   // Update state information
-  set_state(&st);
+  set_state(&st, pi.rel_units);
 
   set_wp();
-
+  counter = 0;
+  counter_probe = 0;
   //set_trajectory(&trajectory);
 
   // Initialize the wp
@@ -199,7 +203,7 @@ void pi_run(void){
 
   pthread_mutex_lock(&pi_mutex);
 
-  set_state(&st);
+  set_state(&st, pi.rel_units);
   check_wp();
 
   if(pi.TASK == 0){
@@ -207,12 +211,15 @@ void pi_run(void){
   }
 
   else if(pi.TASK == 3 || pi.TASK == 4){
-    float THR = 0.3;
-    float dist_cat_mouse = (st.pos[0]- st.pos_rel[0]) * (st.pos[0]- st.pos_rel[0]) + (st.pos[1]- st.pos_rel[1] ) * (st.pos[1]- st.pos_rel[1]);
-    if(dist_cat_mouse < THR*THR){
+    /*float THR = 3;//0.3;
+    float dist_cats_mouse = 0;
+    for(uint8_t u = 0; u < pi.rel_units; u++){
+      dist_cats_mouse += (st.pos[0]- st.pos_rel[u].N) * (st.pos[0]- st.pos_rel[u].N) + (st.pos[1]- st.pos_rel[u].E ) * (st.pos[1]- st.pos_rel[u].E);
+    }
+    if(dist_cats_mouse < THR){
       pi_result.vel.x = 0.0;
       pi_result.vel.y = 0.0;
-    }
+    }*/
   }
 
     if (pi_got_result){
@@ -223,6 +230,22 @@ void pi_run(void){
       pi_got_result = false;
     }
 
+    //////////////////////////////////////
+
+    if(pi.TASK == 1){
+      if(counter == 0){
+        delayed_N = st.pos_rel[0].N;
+        delayed_E = st.pos_rel[0].E;
+      }
+      if(counter == 40){
+        wp.pos_N = delayed_N;
+        wp.pos_E = delayed_E;
+        counter = -1;
+      }
+      counter++;
+
+    }
+    ////////////////////////////////////
 
   pthread_mutex_unlock(&pi_mutex);
 
@@ -273,7 +296,10 @@ void set_wp(void){
     wp.wp_index = trajectory.wps[0].wp_index;
 
   }
-  else if(pi.TASK == 1){}
+  else if(pi.TASK == 1){
+    wp.pos_N = 0.0;
+    wp.pos_E = 0.0;
+  }
   else if(pi.TASK == 2){
     wp.pos_N = waypoint_get_x(WP_centre);
     wp.pos_E = waypoint_get_y(WP_centre);

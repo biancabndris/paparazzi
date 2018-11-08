@@ -82,8 +82,8 @@
 #ifndef PI_PARALLEL_THR
 #define PI_PARALLEL_THR 0.3
 #endif
-#ifndef PI_UNITS
-#define PI_UNITS 2
+#ifndef PI_REL_UNITS
+#define PI_REL_UNITS 1
 #endif
 #ifndef PI_DIM_U
 #define PI_DIM_U 2
@@ -103,14 +103,21 @@
 #ifndef PI_SAMPLING_METHOD
 #define PI_SAMPLING_METHOD 0
 #endif
+#ifndef PI_PROBE_ANGLE
+#define PI_PROBE_ANGLE 30
+#endif
+#ifndef PI_NUM_PROBES
+#define PI_NUM_PROBES 7 // 7
+#endif
 
 
 
 // Internal functions
-void rotate(int8_t angle, float ** Rmatrix);
-void compute_probes(int8_t angle, uint8_t num_probes, float * v_init, float ** VProbes);
-void select_probe(uint8_t sampling_method, uint8_t num_probes, int8_t angle, float ** u_roll, struct path_integral_t *pi, struct pi_state_t *st, struct pi_wp_t *wp, float * best_probe_vel);
-void compute_control_probes(int8_t angle, uint8_t num_probes, uint8_t probe, float * u_init, float ** UProbes);
+void rotate(int angle, float ** Rmatrix);
+void compute_probes(int angle, uint8_t num_probes, float * v_init, float ** VProbes);
+void select_probe(uint8_t sampling_method, uint8_t num_probes, int angle, float ** u_roll, struct path_integral_t *pi, struct pi_state_t *st, struct pi_wp_t *wp, float * best_probe_vel);
+void compute_control_probes(int angle, uint8_t num_probes, uint8_t probe, float * u_init, float ** UProbes);
+//void copy_state(uint8_t rel_units, uint8_t dimU, struct pi_state_t * dest, struct pi_state_t * origin );
 
 void pi_calc_init(struct path_integral_t *pi){
 
@@ -139,8 +146,10 @@ void pi_calc_init(struct path_integral_t *pi){
      pi->RADIUS             = PI_RADIUS;
      pi->TASK               = PI_TASK;
      pi->SAMPLING_METHOD    = PI_SAMPLING_METHOD;
+     pi->PROBE_ANGLE        = PI_PROBE_ANGLE;
+     pi->NUM_PROBES         = PI_NUM_PROBES;
 
-     pi->units              = PI_UNITS;
+     pi->rel_units          = PI_REL_UNITS;
      pi->dimU               = PI_DIM_U;
 
 
@@ -190,64 +199,38 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
   for (uint8_t i = 0; i< pi->dimU; i++){
     initial_state.pos[i] = st->pos[i];
     initial_state.vel[i] = st->vel[i];
-    initial_state.pos_rel[i] = st->pos_rel[i];
-    initial_state.vel_rel[i] = st->vel_rel[i];
+  }
+  for(uint8_t a = 0; a< pi->rel_units; a++){
+    initial_state.pos_rel[a].N = st->pos_rel[a].N;
+    initial_state.pos_rel[a].E = st->pos_rel[a].E;
+    initial_state.vel_rel[a].N = st->vel_rel[a].N;
+    initial_state.vel_rel[a].E = st->vel_rel[a].E;
   }
 
   switch (pi->SAMPLING_METHOD){
 
     case 0 :
 
-      {//printf("[sampling] Sampling method 0.\n");
-         printf("[sampling] Initial U %f, %f\n",u_roll[0][0], u_roll[0][1]);
+    {break;}
 
-      break;}
+    case 2 :
 
-    case 1 :
+    {
+      //printf("[sampling] Sampling method 2.\n");
 
-      {//printf("[sampling] Sampling method 1.\n");
-        printf("[sampling] Initial U 1 %f, %f\n",u_roll[0][0], u_roll[0][1]);
-      int8_t angle = 30;
-      uint8_t num_probes = 7;
       MAKE_MATRIX_PTR(u_roll_ptr, u_roll, pi->iH);
       float best_probe_vel[pi->dimU];
-      select_probe(pi->SAMPLING_METHOD, num_probes, angle, u_roll_ptr, pi, st, wp, &best_probe_vel[0]);
+      select_probe(pi->SAMPLING_METHOD, pi->NUM_PROBES, pi->PROBE_ANGLE, u_roll_ptr, pi, st, wp, &best_probe_vel[0]);
 
       //printf("[sampling] Best probe %f, %f \n",best_probe_vel[0], best_probe_vel[1]);
-      printf("[sampling] Initial U 2 %f, %f\n",u_roll[0][0], u_roll[0][1]);
-
-      if(u_roll[0][0] != 0.0f){
-        for(int h=0; h< pi->iH; h++){
-          u_roll[h][0] -= (best_probe_vel[0] - initial_state.vel[0]);
-          u_roll[h][1] -= (best_probe_vel[1] - initial_state.vel[1]);
-        }
-      }
-      //printf("[sampling] Adjusted U %f, %f\n",u_roll[0][0], u_roll[0][1]);
+      //printf("[sampling] Modified U %f, %f\n",u_roll[0][0], u_roll[0][1]);
 
       //printf("[sampling] Adjusted U %f, %f, diff %f, initial vel %f \n",u_roll[0][0], u_roll[0][1],(best_probe_vel[0] - initial_state.vel[0]), initial_state.vel[0]);
       initial_state.vel[0] = best_probe_vel[0];
       initial_state.vel[1] = best_probe_vel[1];
 
       break;}
-
-    case 2 :
-
-          {//printf("[sampling] Sampling method 2.\n");
-          int8_t angle = 30;
-          uint8_t num_probes = 7;
-          MAKE_MATRIX_PTR(u_roll_ptr, u_roll, pi->iH);
-          float best_probe_vel[pi->dimU];
-          select_probe(pi->SAMPLING_METHOD,num_probes, angle, u_roll_ptr, pi, st, wp, &best_probe_vel[0]);
-
-          //printf("[sampling] Best probe %f, %f \n",best_probe_vel[0], best_probe_vel[1]);
-          //printf("[sampling] Initial U %f, %f\n",u_roll[0][0], u_roll[0][1]);
-
-          //printf("[sampling] Adjusted U %f, %f, diff %f, initial vel %f \n",u_roll[0][0], u_roll[0][1],(best_probe_vel[0] - initial_state.vel[0]), initial_state.vel[0]);
-          initial_state.vel[0] = best_probe_vel[0];
-          initial_state.vel[1] = best_probe_vel[1];
-
-          break;}
-   }
+  }
 
 
   // Create and compute cost of all samples N
@@ -256,12 +239,16 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
     samples_cost[n] = 0;
 
     for (uint8_t i = 0; i< pi->dimU; i++){
-      internal_state.pos[i] = initial_state.pos[i];//st->pos[i]; //initial_state.pos[i];
-      internal_state.vel[i] = initial_state.vel[i];//st->vel[i];
-      internal_state.pos_rel[i] = initial_state.pos_rel[i];//st->pos_rel[i];
-      internal_state.vel_rel[i] = initial_state.vel_rel[i];//st->vel_rel[i];
+      internal_state.pos[i] = initial_state.pos[i];
+      internal_state.vel[i] = initial_state.vel[i];
     }
-    //printf("State %f, %f\n",internal_state.pos[0], internal_state.vel[0]);
+    for(uint8_t i = 0; i< pi->rel_units; i++){
+      internal_state.pos_rel[i].N = initial_state.pos_rel[i].N;
+      internal_state.pos_rel[i].E = initial_state.pos_rel[i].E;
+      internal_state.vel_rel[i].N = initial_state.vel_rel[i].N;
+      internal_state.vel_rel[i].E = initial_state.vel_rel[i].E;
+    }
+
     float applied_vel_n = internal_state.vel[0];
     float applied_vel_e = internal_state.vel[1];
 
@@ -287,11 +274,12 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
       internal_state.pos[0] += applied_vel_n*pi->dh;
       internal_state.pos[1] += applied_vel_e*pi->dh;
 
-      //Propagate follower units
-      //for(int a=0; a < pi->units; a++) {
-      internal_state.pos_rel[0] += internal_state.vel_rel[0] * pi->dh;
-      internal_state.pos_rel[1] += internal_state.vel_rel[1] * pi->dh;
-      //}
+      //Propagate follower rel_units
+      for(int a=0; a < pi->rel_units; a++) {
+        internal_state.pos_rel[a].N += internal_state.vel_rel[a].N * pi->dh;
+        internal_state.pos_rel[a].E += internal_state.vel_rel[a].E * pi->dh;
+      }
+
       // Control Cost
       samples_cost[n] += pi->R * fabs(u_roll[h][0]*u_roll[h][0]*half_dh + u_roll[h][0]*noise[n][h][0] + u_roll[h][1]*u_roll[h][1]*half_dh + u_roll[h][1]*noise[n][h][1]);
 
@@ -299,86 +287,96 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
       // Out of boundaries cost
       if(internal_state.pos[0] > pi->CZ_LIMIT){
         float outside = internal_state.pos[0] - pi->CZ_LIMIT;
-      samples_cost[n] += exp( pi->OUTSIDECZ_PENALTY* outside);
+        samples_cost[n] += exp( pi->OUTSIDECZ_PENALTY* outside);
       }
       if(internal_state.pos[0] < -pi->CZ_LIMIT){
-      float outside = internal_state.pos[0] + pi->CZ_LIMIT;
-      samples_cost[n] += exp( pi->OUTSIDECZ_PENALTY* outside);
+        float outside = internal_state.pos[0] + pi->CZ_LIMIT;
+        samples_cost[n] += exp( pi->OUTSIDECZ_PENALTY* outside);
       }
       if(internal_state.pos[1] > pi->CZ_LIMIT){
         float outside = internal_state.pos[1] - pi->CZ_LIMIT;
         samples_cost[n] += exp( pi->OUTSIDECZ_PENALTY* outside);
       }
-     if(internal_state.pos[1] < -pi->CZ_LIMIT){
+      if(internal_state.pos[1] < -pi->CZ_LIMIT){
         float outside = internal_state.pos[1] + pi->CZ_LIMIT;
-       samples_cost[n] += exp( pi->OUTSIDECZ_PENALTY* outside);
+        samples_cost[n] += exp( pi->OUTSIDECZ_PENALTY* outside);
       }
 
-     float outside =  internal_state.pos[0]*internal_state.pos[0] + internal_state.pos[1]*internal_state.pos[1];
-     samples_cost[n] += 10/((6.25-outside)*(6.25-outside));
+      //float outside2 =  internal_state.pos[0]*internal_state.pos[0] + internal_state.pos[1]*internal_state.pos[1];
+      //samples_cost[n] += 10/((6.25-outside2)*(6.25-outside2));
 
 
-     float dist_unit = 0;
-     float dist_wp = 0;
-     switch (pi->TASK){
+      float dist_unit = 0;
+      float dist_wp = 0;
+      switch (pi->TASK){
         case 0:
 
-        {  //printf("[task] Leader task selected\n");
+        {
+          //printf("[task] Leader task selected\n");
 
-        // Distance from WP cost
-        dist_wp = (internal_state.pos[0]- wp->pos_N) * (internal_state.pos[0]- wp->pos_N) + (internal_state.pos[1]- wp->pos_E ) * (internal_state.pos[1]- wp->pos_E );
-        samples_cost[n] += pi->TARGET_PENALTY* pi->dh * dist_wp;
+          // Distance from WP cost
+          dist_wp = (internal_state.pos[0]- wp->pos_N) * (internal_state.pos[0]- wp->pos_N) + (internal_state.pos[1]- wp->pos_E ) * (internal_state.pos[1]- wp->pos_E );
+          samples_cost[n] += pi->TARGET_PENALTY* pi->dh * dist_wp;
 
-        // Heading cost
-        if(dist_wp > 0.5f){
-          float cross_product_3 = fabs(applied_vel_n * wp->pos_E - applied_vel_e* wp->pos_N);
-          samples_cost[n] += pi->HEADING_PENALTY * pi->dh * cross_product_3;
-        }
+          // Heading cost
+          if(dist_wp > 0.5f){
+            float cross_product_3 = fabs(applied_vel_n * wp->pos_E - applied_vel_e* wp->pos_N);
+            samples_cost[n] += pi->HEADING_PENALTY * pi->dh * cross_product_3;
+          }
 
-        // Collision cost
-        for(int a=0; a < pi->units-1; a++){
-          dist_unit = (internal_state.pos[0]-  internal_state.pos_rel[0]) * (internal_state.pos[0]- internal_state.pos_rel[0]) + (internal_state.pos[1]- internal_state.pos_rel[1]) * (internal_state.pos[1]- internal_state.pos_rel[1]);
-          if(dist_unit > pi->COLLISION_DISTANCE ){}
-          else{ samples_cost[n] += exp(pi->COLLISION_PENALTY *(pi->COLLISION_DISTANCE - dist_unit));}
-        }
+          // Collision cost
+          for(int a=0; a < pi->rel_units; a++){
+            dist_unit = (internal_state.pos[0]-  internal_state.pos_rel[a].N) * (internal_state.pos[0]- internal_state.pos_rel[a].N) + (internal_state.pos[1]- internal_state.pos_rel[a].E) * (internal_state.pos[1]- internal_state.pos_rel[a].E);
+            if(dist_unit > pi->COLLISION_DISTANCE ){}
+            else{ samples_cost[n] += exp(pi->COLLISION_PENALTY *(pi->COLLISION_DISTANCE - dist_unit));}
+          }
 
-         break;}
+          break;}
 
 
         case 1:
 
-        {//printf("[task] Follower task selected\n");
+        {
+          //printf("[task] Follower task selected\n");
 
           // Cohesion cost
-          float dist_leader = (internal_state.pos[0]- internal_state.pos_rel[0]) * (internal_state.pos[0]- internal_state.pos_rel[0]) + (internal_state.pos[1]- internal_state.pos_rel[1]) * (internal_state.pos[1]- internal_state.pos_rel[1]);
+          float dist_leader = (internal_state.pos[0]- internal_state.pos_rel[0].N) * (internal_state.pos[0]- internal_state.pos_rel[0].N) + (internal_state.pos[1]- internal_state.pos_rel[0].E) * (internal_state.pos[1]- internal_state.pos_rel[0].E);
           if(dist_leader < pi->COHESION_DISTANCE ){}
           else{
             samples_cost[n] += exp(pi->COHESION_PENALTY *(dist_leader - pi->COHESION_DISTANCE));
             //samples_cost[n] += (100 *(dist_leader - pi->COHESION_DISTANCE));
           }
 
+          ////////////////////////////////////////////////
+          // Distance from WP cost
+          /*          dist_wp = (internal_state.pos[0]- wp->pos_N) * (internal_state.pos[0]- wp->pos_N) + (internal_state.pos[1]- wp->pos_E ) * (internal_state.pos[1]- wp->pos_E );
+          samples_cost[n] += pi->TARGET_PENALTY* pi->dh * dist_wp;
+
+          // Heading cost
+          if(dist_wp > 0.5f){
+            float cross_product_3 = fabs(applied_vel_n * wp->pos_E - applied_vel_e* wp->pos_N);
+            samples_cost[n] += pi->HEADING_PENALTY * pi->dh * cross_product_3;
+          }*/
+          ///////////////////////////////////////////////
+
+
           // Collision cost
-          //for(int a=0; a < pi->units-1; a++){
-          //float dist_unit = (internal_state.pos[0]-  internal_state.pos_rel[0+2*a]) * (internal_state.pos[0]- internal_state.pos_rel[0+2*a]) + (internal_state.pos[1]- internal_state.pos_rel[0+2*a]) * (internal_state.pos[1]- internal_state.pos_rel[0+2*a]);
-          if(dist_leader > pi->COLLISION_DISTANCE ){}
-          else{
-            samples_cost[n] += exp(pi->COLLISION_PENALTY *(pi->COLLISION_DISTANCE - dist_leader));
-            //samples_cost[n] += (1000*(pi->COLLISION_DISTANCE - dist_leader));
+          for(int a=0; a < pi->rel_units; a++){
+            dist_unit = (internal_state.pos[0]-  internal_state.pos_rel[a].N) * (internal_state.pos[0]- internal_state.pos_rel[a].N) + (internal_state.pos[1]- internal_state.pos_rel[a].E) * (internal_state.pos[1]- internal_state.pos_rel[a].E);
+            if(dist_unit > pi->COLLISION_DISTANCE ){}
+            else{
+              samples_cost[n] += exp(pi->COLLISION_PENALTY *(pi->COLLISION_DISTANCE - dist_unit));
+              //samples_cost[n] += (1000*(pi->COLLISION_DISTANCE - dist_unit));
+            }
           }
-          //printf("Diff dist leader %f, diff dist unit %f \n", dist_leader - pi->COHESION_DISTANCE, pi->COLLISION_DISTANCE - dist_unit );
 
-
-          // Parallel cost
-            //float cross_product_3 = fabs(internal_state.pos[0] * internal_state.pos_rel[1+2*a] - internal_state.pos[1] * internal_state.pos_rel[0+2*a]);
-            //if(cross_product_3 > pi->PARALLEL_THR){}
-            //else{samples_cost[n] += exp(pi->PARALLEL_PENALTY *(pi->PARALLEL_THR - cross_product_3));}
-
-          //}
-            break;}
+          break;}
 
         case 2:
 
-          {//printf("[task] Circling task selected\n");
+
+        {
+          //printf("[task] Circling task selected\n");
 
           // Distance from center cost
           dist_wp = (internal_state.pos[0]- wp->pos_N) * (internal_state.pos[0]- wp->pos_N) + (internal_state.pos[1]- wp->pos_E ) * (internal_state.pos[1]- wp->pos_E );
@@ -392,28 +390,32 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
 
 
           // Collision cost
-          //for(int a=0; a < pi->units-1; a++){
-            dist_unit = (internal_state.pos[0]-  internal_state.pos_rel[0]) * (internal_state.pos[0]- internal_state.pos_rel[0]) + (internal_state.pos[1]- internal_state.pos_rel[1]) * (internal_state.pos[1]- internal_state.pos_rel[1]);
+          for(int a=0; a < pi->rel_units-1; a++){
+            dist_unit = (internal_state.pos[0]-  internal_state.pos_rel[a].N) * (internal_state.pos[0]- internal_state.pos_rel[a].N) + (internal_state.pos[1]- internal_state.pos_rel[a].E) * (internal_state.pos[1]- internal_state.pos_rel[a].E);
             samples_cost[n] -= dist_unit*pi->dh;
             if(dist_unit > pi->COLLISION_DISTANCE ){}
             else{
               samples_cost[n] += exp(pi->COLLISION_PENALTY *(pi->COLLISION_DISTANCE - dist_unit));
+              //samples_cost[n] += (1000*(pi->COLLISION_DISTANCE - dist_leader));
             }
-          //}
+          }
+
           break;}
 
         case 3:
         {
+
           //printf("[task] Cat task selected\n");
           // Minimum velocity cost
-          /*float velocity_vec = applied_vel_n * applied_vel_n + applied_vel_e * applied_vel_e;
+          float velocity_vec = applied_vel_n * applied_vel_n + applied_vel_e * applied_vel_e;
           if(velocity_vec > pi->MIN_SPEED){}
           else{
             samples_cost[n] += pi->MIN_SPEED_PENALTY*(pi->MIN_SPEED - velocity_vec)*(pi->MIN_SPEED - velocity_vec);}
-*/
-          // Follow mouse's position
-          float dist_mouse = (internal_state.pos[0]- internal_state.pos_rel[0]) * (internal_state.pos[0]- internal_state.pos_rel[0]) + (internal_state.pos[1]- internal_state.pos_rel[1]) * (internal_state.pos[1]- internal_state.pos_rel[1]);
+
+          // Follow mouse's position !!! Mouse has the 0 position !!!
+          float dist_mouse = (internal_state.pos[0]- internal_state.pos_rel[0].N) * (internal_state.pos[0]- internal_state.pos_rel[0].N) + (internal_state.pos[1]- internal_state.pos_rel[0].E) * (internal_state.pos[1]- internal_state.pos_rel[0].E);
           samples_cost[n] += pi->TARGET_PENALTY *pi->dh * dist_mouse;
+
 
           break;
         }
@@ -423,27 +425,32 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
           //printf("[task] Mouse task selected\n");
 
           // Minimum velocity cost
-          //float velocity_vec = applied_vel_n * applied_vel_n + applied_vel_e * applied_vel_e;
-          //if(velocity_vec > pi->MIN_SPEED){}
-          //else{
-          //  samples_cost[n] += pi->MIN_SPEED_PENALTY*(pi->MIN_SPEED - velocity_vec)*(pi->MIN_SPEED - velocity_vec);}
+          float velocity_vec = applied_vel_n * applied_vel_n + applied_vel_e * applied_vel_e;
+          if(velocity_vec > pi->MIN_SPEED){}
+          else{
+            samples_cost[n] += pi->MIN_SPEED_PENALTY*(pi->MIN_SPEED - velocity_vec)*(pi->MIN_SPEED - velocity_vec);}
 
-          // Escape cat
-          float dist_cat = (internal_state.pos[0]- internal_state.pos_rel[0]) * (internal_state.pos[0]- internal_state.pos_rel[0]) + (internal_state.pos[1]- internal_state.pos_rel[1]) * (internal_state.pos[1]- internal_state.pos_rel[1]);
-          samples_cost[n] += (pi->TARGET_PENALTY*pi->dh)/dist_cat;
-
+          // Escape cats
+          for(int a=0; a < pi->rel_units-1; a++){
+            float dist_cat = (internal_state.pos[0]- internal_state.pos_rel[a].N) * (internal_state.pos[0]- internal_state.pos_rel[a].N) + (internal_state.pos[1]- internal_state.pos_rel[a].E) * (internal_state.pos[1]- internal_state.pos_rel[a].E);
+            samples_cost[n] += (pi->TARGET_PENALTY*pi->dh)/dist_cat;
+          }
           break;
         }
 
       }
     }
+
+    if(isnan(samples_cost[n])){
+      samples_cost[n] = 1000000;
+    }
+
     cost_sum += samples_cost[n];
     if(samples_cost[n] < min_cost) {min_cost = samples_cost[n];}
 
   }
 
   //float mean_cost = cost_sum/pi->N;
-
   //printf("Min cost %f\n", min_cost);
   //Compute weight of all samples N
   float w[pi->N];
@@ -484,7 +491,7 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
       internal_controls[h][0] += w[n] * noise[n][h][0];
       internal_controls[h][1] += w[n] * noise[n][h][1];
     }
-   }
+  }
 
   ESS = 1/ESS_sum;
   result->variance = ESS;
@@ -495,11 +502,24 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
   }
 
   // Compute optimal controls
-  float ned_vel_n =  st->vel[0] + (u_roll[0][0] + internal_controls[0][0])*(dt);
-  float ned_vel_e =  st->vel[1] + (u_roll[0][1] + internal_controls[0][1])*(dt);
+  float ned_vel_n,  ned_vel_e;
+  if((initial_state.vel[0] - st->vel[0]) == 0.0){
 
-  //float ned_vel_n =  st->vel[0] + ((initial_state.vel[0] - st->vel[0])/dt + (u_roll[0][0] + internal_controls[0][0]))*(dt);
-  //float ned_vel_e =  st->vel[1] + ((initial_state.vel[1] - st->vel[1])/dt + (u_roll[0][1] + internal_controls[0][1]))*(dt);
+    ned_vel_n =  st->vel[0] + (u_roll[0][0] + internal_controls[0][0])*(dt);
+    ned_vel_e =  st->vel[1] + (u_roll[0][1] + internal_controls[0][1])*(dt);
+  }
+  else{
+    ned_vel_n =  st->vel[0] + ((initial_state.vel[0] - st->vel[0])/dt + (u_roll[0][0] + internal_controls[0][0]))*dt;
+    ned_vel_e =  st->vel[1] + ((initial_state.vel[1] - st->vel[1])/dt + (u_roll[0][1] + internal_controls[0][1]))*dt;
+  }
+
+  //printf(" state vel %f, u control %f, internal_control %f, result %f\n", st->vel[0], u_roll[0][0] , internal_controls[0][0],(u_roll[0][0] + internal_controls[0][0])*dt );
+
+  /*float dv_n = (st->vel[0] - ((initial_state.vel[0] - st->vel[0])/dt + (u_roll[0][0] + internal_controls[0][0]))*dt);
+  float dv_e = (st->vel[0] - ((initial_state.vel[0] - st->vel[0])/dt + (u_roll[0][0] + internal_controls[0][0]))*dt);
+
+  Bound(dv_n,-pi->MAX_SPEED, pi->MAX_SPEED);
+  Bound(dv_e,-pi->MAX_SPEED, pi->MAX_SPEED);*/
 
   result->vel.x = ned_vel_n;
   result->vel.y = ned_vel_e;
@@ -529,9 +549,8 @@ bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct 
  * @param[in]  angle [degrees]
  * @param[in]  *Rmatrix rotation matrix
  */
-void rotate(int8_t angle, float ** Rmatrix){
+void rotate(int angle, float ** Rmatrix){
   float radians = angle * (M_PI / 180.0);
-
   Rmatrix[0][0] = cosf(radians);
   Rmatrix[0][1] = -sinf(radians);
   Rmatrix[1][0] = sinf(radians);
@@ -547,7 +566,7 @@ void rotate(int8_t angle, float ** Rmatrix){
  * @param[in]  * v_init
  * @param[out]  **VProbes
  */
-void compute_control_probes(int8_t angle, uint8_t num_probes, uint8_t probe, float * u_init, float ** UProbes){
+void compute_control_probes(int angle, uint8_t num_probes, uint8_t probe, float * u_init, float ** UProbes){
 
   float _Rmatrix[2][2];
   MAKE_MATRIX_PTR(Rmatrix, _Rmatrix, 2);
@@ -560,13 +579,14 @@ void compute_control_probes(int8_t angle, uint8_t num_probes, uint8_t probe, flo
 
   int half_probes = (num_probes-1)/2;
   if(probe < half_probes){
-    rotate((probe+1)*angle, Rmatrix);
+    rotate((probe+1) * angle, Rmatrix);
     MAT_MUL(1,2,2, CC, u, Rmatrix);
     UProbes[0][0] = CC[0][0];
     UProbes[0][1] = CC[0][1];
   }
-  else if(probe > half_probes){
-    rotate(-(probe+1)*angle, Rmatrix);
+  else if(probe >= half_probes){
+
+    rotate(-(probe-half_probes +1) * angle, Rmatrix);
     MAT_MUL(1,2,2, C, u, Rmatrix );
     UProbes[0][0] = C[0][0];
     UProbes[0][1] = C[0][1];
@@ -588,7 +608,7 @@ void compute_control_probes(int8_t angle, uint8_t num_probes, uint8_t probe, flo
  * @param[in]  * v_init
  * @param[out]  **VProbes
  */
-void compute_probes(int8_t angle, uint8_t num_probes, float * v_init, float ** VProbes){
+void compute_probes(int angle, uint8_t num_probes, float * v_init, float ** VProbes){
 
   float _Rmatrix[2][2];
   MAKE_MATRIX_PTR(Rmatrix, _Rmatrix, 2);
@@ -628,82 +648,82 @@ void compute_probes(int8_t angle, uint8_t num_probes, float * v_init, float ** V
  * @param[in]  *wp  waypoint given to the leader
  * @param[out] best_probe_velocity the velocity of the probe with the least cost
  */
-void select_probe(uint8_t sampling_method ,uint8_t num_probes, int8_t angle, float ** u_roll, struct path_integral_t *pi, struct pi_state_t *st, struct pi_wp_t *wp , float * best_probe_vel){
+void select_probe(uint8_t sampling_method ,uint8_t num_probes, int angle, float ** u_roll, struct path_integral_t *pi, struct pi_state_t *st, struct pi_wp_t *wp , float * best_probe_vel){
 
   float samples_cost_probes[num_probes];
   struct pi_state_t internal_state_probes;
   struct pi_state_t initial_state;
   float min_cost = 1000000;
-  uint8_t min_cost_index = -1;
+  int8_t min_cost_index = num_probes -1;
   float half_dh = pi->dh*0.5;
   float u_horizon[pi->iH][pi->dimU];
 
   //printf("Sampling method %d\n", sampling_method);
   //TODO: Send this to the function instead of doing it again
-  for (int i = 0; i< pi->dimU; i++){
+  for (int i = 0; i < pi->dimU; i++){
     initial_state.pos[i] = st->pos[i];
     initial_state.vel[i] = st->vel[i];
-    initial_state.pos_rel[i] = st->pos_rel[i];
-    initial_state.vel_rel[i] = st->vel_rel[i];
+  }
+  //Propagate follower rel_units
+  for(int a=0; a < pi->rel_units; a++) {
+    initial_state.pos_rel[a].N = st->pos_rel[a].N;
+    initial_state.pos_rel[a].E = st->pos_rel[a].E;
+    initial_state.vel_rel[a].N = st->vel_rel[a].N;
+    initial_state.vel_rel[a].E = st->vel_rel[a].E;
   }
 
-  //initial_state.vel[0] = 0.2;
-  //initial_state.vel[1] = 0;
-  //printf("1. Initial state for probes: x %f, v %f x_rel %f\n", initial_state.pos[0], initial_state.vel[0], initial_state.pos_rel[0]);
   float _VProbes[num_probes][pi->dimU];
   MAKE_MATRIX_PTR(VProbes, _VProbes, num_probes);
   compute_probes(angle, num_probes, &initial_state.vel[0] , VProbes);
 
-  //printf("2. Probes: v00 %f, v01 %f v10 %f, v11 %f\n", _VProbes[0][0], _VProbes[0][1], _VProbes[1][0], _VProbes[1][1]);
-  //printf("2.1. Probes: v20 %f, v21 %f v30 %f, v31 %f\n", _VProbes[2][0], _VProbes[2][1], _VProbes[3][0], _VProbes[3][1]);
-  //printf("2.1. Probes: v40 %f, v41 %f v50 %f, v51 %f\n", _VProbes[4][0], _VProbes[4][1], _VProbes[5][0], _VProbes[5][1]);
-  //printf("2.1. Probes: v60 %f, v61 %f \n", _VProbes[6][0], _VProbes[6][1]);
+
+  float mean_N = 0;
+  float mean_E = 0;
+  for(int h = pi->iH/2; h < pi->iH; h++){
+    mean_N += u_roll[h][0];
+    mean_E += u_roll[h][1];
+  }
+  mean_N = mean_N/(pi->iH/2);
+  mean_E = mean_E/(pi->iH/2);
+
   for(uint8_t p = 0; p < num_probes; p++){
-
     samples_cost_probes[p] = 0;
-    //for (int i = 0; i< pi->dimU; i++){
-      internal_state_probes.pos[0] = initial_state.pos[0];
-      internal_state_probes.vel[0] = _VProbes[p][0];
-      internal_state_probes.pos_rel[0] = initial_state.pos_rel[0];
-      internal_state_probes.vel_rel[0] = initial_state.vel_rel[0];
 
-      internal_state_probes.pos[1] = initial_state.pos[0];
-      internal_state_probes.vel[1] = _VProbes[p][0];
-      internal_state_probes.pos_rel[1] = initial_state.pos_rel[0];
-      internal_state_probes.vel_rel[1] = initial_state.vel_rel[0];
-    //}
+    for (uint8_t i = 0; i < pi->dimU; i++){
+      internal_state_probes.pos[i] = initial_state.pos[i];
+      internal_state_probes.vel[i] = _VProbes[p][i];
+    }
+
+    for(uint8_t a = 0; a < pi->rel_units; a++) {
+      internal_state_probes.pos_rel[a].N = initial_state.pos_rel[a].N;
+      internal_state_probes.pos_rel[a].E = initial_state.pos_rel[a].E;
+      internal_state_probes.vel_rel[a].N = initial_state.vel_rel[a].N;
+      internal_state_probes.vel_rel[a].E = initial_state.vel_rel[a].E;
+    }
 
     for(int h = 0; h < pi->iH; h++){
-      switch(sampling_method){
-        case 1:{
 
-        if(u_horizon[0][0] != 0.0f){
-          u_horizon[h][0] = u_roll[h][0] - (_VProbes[p][0] - initial_state.vel[0]);
-          u_horizon[h][1] = u_roll[h][1] - (_VProbes[p][1] - initial_state.vel[1]);
-        }
-        else{
-          u_horizon[h][0] = u_roll[h][0];
-          u_horizon[h][1] = u_roll[h][1];
-        }
+      float _UProbes[1][pi->dimU];
+      MAKE_MATRIX_PTR(UProbes, _UProbes, num_probes);
+      u_roll[0][0] = 1;
+      u_roll[0][1] = 0;
+      compute_control_probes(angle, num_probes, p , &u_roll[h][0],UProbes);
+/*      if(h==0){
+        printf("Probe %d, control %f, %f\n", p, UProbes[0][0], UProbes[0][1]);
+      }*/
 
-        //printf("3. Adjust control: u_hor %f, u_roll %f Vprobe %f,initial vel %f \n", u_horizon[h][0], u_roll[h][0], _VProbes[p][0], initial_state.vel[0]);
-
-        internal_state_probes.vel[0] += u_horizon[h][0]*pi->dh;
-        internal_state_probes.vel[1] += u_horizon[h][1]*pi->dh;
-        break;
-        }
-        case 2:{
-
-        float _UProbes[1][pi->dimU];
-        MAKE_MATRIX_PTR(UProbes, _UProbes, num_probes);
-        //compute_probes(angle, num_probes, &u_roll[h][0] , UProbes);
-
-        compute_control_probes(angle, num_probes, p , &u_roll[h][0],UProbes);
-        //printf("Probe %d, control %f, %f\n", p, UProbes[0][0], UProbes[0][1]);
-
+      if(p == 0 || p == 3 || p == 6 || h < pi->iH/2){ // 0 3 6 // 0 6 12
+        //printf("Normal probe %d, h %d\n", p, h);
         internal_state_probes.vel[0] += UProbes[0][0]*pi->dh;
         internal_state_probes.vel[1] += UProbes[0][1]*pi->dh;
-        break;
+      }
+      else{
+        if(h >= pi->iH/2){
+          //printf("Mean probe %d, h %d, mean %f\n", p, h, mean_N);
+          UProbes[0][0] = mean_N;
+          UProbes[0][1] = mean_E;
+          internal_state_probes.vel[0] += UProbes[0][0]*pi->dh;
+          internal_state_probes.vel[1] += UProbes[0][1]*pi->dh;
         }
       }
 
@@ -714,8 +734,12 @@ void select_probe(uint8_t sampling_method ,uint8_t num_probes, int8_t angle, flo
       // Propagate position
       internal_state_probes.pos[0] += internal_state_probes.vel[0] * pi->dh;
       internal_state_probes.pos[1] += internal_state_probes.vel[1] * pi->dh;
-      internal_state_probes.pos_rel[0] += internal_state_probes.vel_rel[0] * pi->dh;
-      internal_state_probes.pos_rel[1] += internal_state_probes.vel_rel[1] * pi->dh;
+
+      //Propagate follower rel_units
+      for(int a=0; a < pi->rel_units; a++){
+        internal_state_probes.pos_rel[a].N += internal_state_probes.vel_rel[a].N * pi->dh;
+        internal_state_probes.pos_rel[a].E += internal_state_probes.vel_rel[a].E * pi->dh;
+      }
 
       // Control Cost
       samples_cost_probes[p] += pi->R * fabs(u_horizon[h][0]*u_horizon[h][0]*half_dh  + u_horizon[h][1]*u_horizon[h][1]*half_dh);
@@ -742,11 +766,12 @@ void select_probe(uint8_t sampling_method ,uint8_t num_probes, int8_t angle, flo
       float dist_unit = 0.0;
       switch(pi->TASK){
         case 0:
-          {//printf("[task] Leader task selected\n");
+        {
+          //printf("[task] Leader task selected\n");
           // Target distance cost
           dist_wp = (internal_state_probes.pos[0]- wp->pos_N) * (internal_state_probes.pos[0]- wp->pos_N) + (internal_state_probes.pos[1]- wp->pos_E ) * (internal_state_probes.pos[1]- wp->pos_E );
           samples_cost_probes[p] += pi->TARGET_PENALTY* pi->dh * dist_wp;
-          samples_cost_probes[p] += exp((dist_wp - pi->RADIUS));
+
 
           // Heading cost
           if(dist_wp > 0.5f){
@@ -755,40 +780,59 @@ void select_probe(uint8_t sampling_method ,uint8_t num_probes, int8_t angle, flo
           }
 
           // Collision cost
-          dist_unit = (internal_state_probes.pos[0]-  internal_state_probes.pos_rel[0]) * (internal_state_probes.pos[0]- internal_state_probes.pos_rel[0]) + (internal_state_probes.pos[1]- internal_state_probes.pos_rel[1]) * (internal_state_probes.pos[1]- internal_state_probes.pos_rel[1]);
-          if(dist_unit > pi->COLLISION_DISTANCE ){}
-          else{ samples_cost_probes[p] += exp(pi->COLLISION_PENALTY *(pi->COLLISION_DISTANCE - dist_unit));}
-
+          for(int a=0; a < pi->rel_units; a++){
+            dist_unit = (internal_state_probes.pos[0]-  internal_state_probes.pos_rel[a].N) * (internal_state_probes.pos[0]- internal_state_probes.pos_rel[a].N) + (internal_state_probes.pos[1]- internal_state_probes.pos_rel[a].E) * (internal_state_probes.pos[1] - internal_state_probes.pos_rel[a].E);
+            if(dist_unit > pi->COLLISION_DISTANCE ){}
+            else{ samples_cost_probes[p] += exp(pi->COLLISION_PENALTY *(pi->COLLISION_DISTANCE - dist_unit));}
+            //samples_cost[n] += (1000*(pi->COLLISION_DISTANCE - dist_leader));
+          }
           break;}
 
         case 1:
 
-          {//printf("[task] Follower task selected\n");
+        {//printf("[task] Follower task selected\n");
 
-          // Leader cohesion cost
-          float dist_leader = (internal_state_probes.pos[0]- internal_state_probes.pos_rel[0]) * (internal_state_probes.pos[0]- internal_state_probes.pos_rel[0]) + (internal_state_probes.pos[1]- internal_state_probes.pos_rel[1]) * (internal_state_probes.pos[1]- internal_state_probes.pos_rel[1]);
+          // Leader cohesion cost !!!! Assumed leader pos 0 !!!
+          float dist_leader = (internal_state_probes.pos[0]- internal_state_probes.pos_rel[0].N) * (internal_state_probes.pos[0]- internal_state_probes.pos_rel[0].N) + (internal_state_probes.pos[1]- internal_state_probes.pos_rel[0].E) * (internal_state_probes.pos[1]- internal_state_probes.pos_rel[0].E);
           if(dist_leader < pi->COHESION_DISTANCE ){}
           else{samples_cost_probes[p] += exp(pi->COHESION_PENALTY *(dist_leader - pi->COHESION_DISTANCE));}
 
-          // Collision cost
-          //for(int a=0; a < pi->units-1; a++){
-          //float dist_unit = (internal_state_probes.pos[0]-  internal_state_probes.pos_rel[0+2*a]) * (internal_state_probes.pos[0]- internal_state_probes.pos_rel[0+2*a]) + (internal_state_probes.pos[1]- internal_state_probes.pos_rel[0+2*a]) * (internal_state_probes.pos[1]- internal_state_probes.pos_rel[0+2*a]);
-          if(dist_leader > pi->COLLISION_DISTANCE ){}
-          else{ samples_cost_probes[p] += exp(pi->COLLISION_PENALTY *(pi->COLLISION_DISTANCE - dist_leader));}
+          ////////////////////////////////////////////////
+          // Distance from WP cost
+          /*          dist_wp = (internal_state_probes.pos[0]- wp->pos_N) * (internal_state_probes.pos[0]- wp->pos_N) + (internal_state_probes.pos[1]- wp->pos_E ) * (internal_state_probes.pos[1]- wp->pos_E );
+          samples_cost_probes[p] += pi->TARGET_PENALTY* pi->dh * dist_wp;
 
+          // Heading cost
+          if(dist_wp > 0.5f){
+            float cross_product_3 = fabs(internal_state_probes.vel[0] * wp->pos_E - internal_state_probes.vel[1]* wp->pos_N);
+            samples_cost_probes[p] += pi->HEADING_PENALTY * pi->dh * cross_product_3;
+          }*/
+          ///////////////////////////////////////////////
+
+          // Collision cost
+          for(int a=0; a < pi->rel_units; a++){
+            dist_unit = (internal_state_probes.pos[0]-  internal_state_probes.pos_rel[a].N) * (internal_state_probes.pos[0]- internal_state_probes.pos_rel[a].N) + (internal_state_probes.pos[1]- internal_state_probes.pos_rel[a].E) * (internal_state_probes.pos[1] - internal_state_probes.pos_rel[a].E);
+            if(dist_unit > pi->COLLISION_DISTANCE ){}
+            else{ samples_cost_probes[p] += exp(pi->COLLISION_PENALTY *(pi->COLLISION_DISTANCE - dist_unit));}
+            //samples_cost[n] += (1000*(pi->COLLISION_DISTANCE - dist_leader));
+          }
           break;}
 
         case 2:
-          {//printf("[task] Circling task selected\n");
+        {
+          //printf("[task] Circling task selected\n");
           // Target distance cost
           dist_wp = (internal_state_probes.pos[0]- wp->pos_N) * (internal_state_probes.pos[0]- wp->pos_N) + (internal_state_probes.pos[1]- wp->pos_E ) * (internal_state_probes.pos[1]- wp->pos_E );
           samples_cost_probes[p] += pi->TARGET_PENALTY* pi->dh * dist_wp;
           samples_cost_probes[p] += exp((dist_wp - 4));
 
           // Collision cost
-          dist_unit = (internal_state_probes.pos[0]-  internal_state_probes.pos_rel[0]) * (internal_state_probes.pos[0]- internal_state_probes.pos_rel[0]) + (internal_state_probes.pos[1]- internal_state_probes.pos_rel[1]) * (internal_state_probes.pos[1]- internal_state_probes.pos_rel[1]);
-          if(dist_unit > pi->COLLISION_DISTANCE ){}
-          else{ samples_cost_probes[p] += exp(pi->COLLISION_PENALTY *(pi->COLLISION_DISTANCE - dist_unit));}
+          for(int a=0; a < pi->rel_units; a++){
+            dist_unit = (internal_state_probes.pos[0]-  internal_state_probes.pos_rel[a].N) * (internal_state_probes.pos[0]- internal_state_probes.pos_rel[a].N) + (internal_state_probes.pos[1]- internal_state_probes.pos_rel[a].E) * (internal_state_probes.pos[1] - internal_state_probes.pos_rel[a].E);
+            if(dist_unit > pi->COLLISION_DISTANCE ){}
+            else{ samples_cost_probes[p] += exp(pi->COLLISION_PENALTY *(pi->COLLISION_DISTANCE - dist_unit));}
+            //samples_cost[n] += (1000*(pi->COLLISION_DISTANCE - dist_leader));
+          }
 
           // Min velocity cost
           float velocity_vec = internal_state_probes.vel[0] * internal_state_probes.vel[0] + internal_state_probes.vel[1] * internal_state_probes.vel[1];
@@ -806,17 +850,23 @@ void select_probe(uint8_t sampling_method ,uint8_t num_probes, int8_t angle, flo
     }
   }
   //printf("Min cost index %d\n", min_cost_index);
-  if(sampling_method == 2 && min_cost_index > -1){
-    for(int h=0;h< pi->iH; h++){
-
+  if(min_cost_index != (num_probes -1)){
+    for(int h = 0; h < pi->iH; h++){
       float _UProbes_new[1][pi->dimU];
       MAKE_MATRIX_PTR(UProbes_new, _UProbes_new, num_probes);
-      //printf("Initial control %f, %f\n", u_roll[h][0], u_roll[h][1]);
 
       compute_control_probes(angle, num_probes, min_cost_index , &u_roll[h][0],UProbes_new);
-      u_roll[h][0] = UProbes_new[0][0];
-      u_roll[h][1] = UProbes_new[0][1];
-      //printf("UProbes control %f, %f\n", UProbes_new[0][0], UProbes_new[0][0]);
+      if(min_cost_index == 0 || min_cost_index == 3 || min_cost_index == 6 || h < pi->iH/2){  // 0  3 6 // 0 6 12
+        u_roll[h][0] = UProbes_new[0][0];
+        u_roll[h][1] = UProbes_new[0][1];
+      }
+      else {  //if(h >= pi->iH/2)
+        UProbes_new[0][0] = mean_N;
+        UProbes_new[0][1] = mean_E;
+        u_roll[h][0] = UProbes_new[0][0];
+        u_roll[h][1] = UProbes_new[0][1];
+      }
+      //printf("H %d, UProbes control %f, %f\n", h,  UProbes_new[0][0], UProbes_new[0][1]);
 
     }
   }
@@ -835,6 +885,21 @@ void init_controls(struct path_integral_t *pi){
   }
 }
 
+
+/*void copy_state(uint8_t rel_units, uint8_t dimU, struct pi_state_t * dest, struct pi_state_t * origin ){
+
+  for (uint8_t i = 0; i< dimU; i++){
+    dest->pos[i] = origin->pos[i];
+    dest->vel[i] = origin->vel[i];
+  }
+  for(uint8_t u = 0; u< rel_units; u++){
+    dest->pos_rel[u].N = origin->pos_rel[u].N;
+    dest->pos_rel[u].E = origin->pos_rel[u].E;
+    dest->vel_rel[u].N = origin->vel_rel[u].N;
+    dest->vel_rel[u].E = origin->vel_rel[u].E;
+  }
+
+}*/
 
 //TODO: Make the computation of the cost a separate function. For the probes the nr of samples is different
 // So a new pi struct should be initialized. This is not ideal

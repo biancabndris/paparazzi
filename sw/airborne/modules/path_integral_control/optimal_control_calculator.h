@@ -61,8 +61,10 @@ struct path_integral_t{
    float RADIUS;
    uint8_t TASK;
    uint8_t SAMPLING_METHOD;
+   int PROBE_ANGLE;
+   uint8_t NUM_PROBES;
 
-   uint8_t units;
+   uint8_t rel_units;
    uint8_t dimU;
 
    gsl_rng *seed;
@@ -78,7 +80,7 @@ extern void pi_calc_init(struct path_integral_t *pi);
 bool pi_calc_timestep(struct path_integral_t *pi, struct pi_state_t *st, struct pi_wp_t *wp, struct pi_result_t *result);
 extern void init_controls(struct path_integral_t *pi);
 
-static inline void set_state(struct pi_state_t *st){
+static inline void set_state(struct pi_state_t *st, uint8_t rel_units){
 
   st->pos[0]     = stateGetPositionNed_f()->x;
   st->pos[1]     = stateGetPositionNed_f()->y;
@@ -86,21 +88,22 @@ static inline void set_state(struct pi_state_t *st){
   st->vel[1]     = stateGetSpeedNed_f()->y;
   st->psi        = stateGetNedToBodyEulers_f()->psi;
 
-  uint8_t *ac_ids;
-  ac_ids = acInfoGetAcIds();
-  uint8_t follower_id = *(ac_ids+2);
 
-  struct EnuCoor_f *ac_pos = acInfoGetPositionEnu_f(follower_id);
-  st->pos_rel[0] = ac_pos->y;
-  st->pos_rel[1] = ac_pos->x;
-  //st->pos_rel[2] = 0;
-  //st->pos_rel[3] = 0;
+  uint8_t *ac_ids = acInfoGetAcIds();
+  //int rel_units = sizeof(st->pos_rel)/sizeof(float);
+  //int rel_units = 3;
+  for(uint8_t u=0; u< rel_units; u++){
 
-  struct EnuCoor_f *ac_vel = acInfoGetVelocityEnu_f(follower_id);
-  st->vel_rel[0] = ac_vel->y;
-  st->vel_rel[1] = ac_vel->x;
-  //st->vel_rel[2] = 0;
-  //st->vel_rel[3] = 0;
+    uint8_t follower_id = *(ac_ids+2+u);
+    struct EnuCoor_f *ac_pos = acInfoGetPositionEnu_f(follower_id);
+    st->pos_rel[u].N = ac_pos->y;
+    st->pos_rel[u].E = ac_pos->x;
+
+    struct EnuCoor_f *ac_vel = acInfoGetVelocityEnu_f(follower_id);
+    st->vel_rel[u].N = ac_vel->y;
+    st->vel_rel[u].E = ac_vel->x;
+  }
+
 }
 
 
