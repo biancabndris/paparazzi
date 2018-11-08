@@ -63,6 +63,7 @@ struct path_integral_t{
    uint8_t SAMPLING_METHOD;
    int PROBE_ANGLE;
    uint8_t NUM_PROBES;
+   uint8_t BEST_PROBE;
 
    uint8_t rel_units;
    uint8_t dimU;
