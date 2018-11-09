@@ -83,6 +83,7 @@
     <module name="range_forcefield">
       <define name="RANGE_FORCEFIELD_MAX_VEL" value="0.6"/>
     </module>
+    <module name="path_integral_controller"/>
   </firmware>
 
   <servos driver="Pwm">

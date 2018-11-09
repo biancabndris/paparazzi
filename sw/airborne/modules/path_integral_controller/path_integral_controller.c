@@ -14,15 +14,15 @@
 #include "modules/path_integral_controller/path_integral_controller.h"
 #include "modules/path_integral_controller/sampler.h"
 #include  <stdio.h>
-#include  <time.h>
+#include  "mcu_periph/sys_time.h"
 
 
 #include <math.h>
 #include "math/pprz_algebra.h"
 #include "math/pprz_algebra_float.h"
-#include <gsl/gsl_rng.h>
-#include <gsl/gsl_randist.h>
-#include <stdlib.h>
+//#include <gsl/gsl_rng.h>
+//#include <gsl/gsl_randist.h>
+//#include <stdlib.h>
 
 #if PERIODIC_TELEMETRY
 #include "subsystems/datalink/telemetry.h"
@@ -31,42 +31,47 @@
  * @param[in] *trans The transport structure to send the information over
  * @param[in] *dev The link to send the data over
  */
-static void pi_telem_send(struct transport_tx *trans, struct link_device *dev)
+
+/*static void pi_telem_send(struct transport_tx *trans, struct link_device *dev)
 {
 
   pprz_msg_send_PATH_INTEGRAL(trans, dev, AC_ID,
                                &in.oc_x, &in.oc_y); // TODO: no noise measurement here...
-}
+}*/
 #endif
+
+struct PIController pi2;
+struct Input in;
+struct PIstate st2;
 
 void pi_init() {
 
-  PIController_init();//&pi
-  initInput(); //&in
+  PIController_init(&pi2);//&pi
+  initInput(&in); //&in
 
-#if PERIODIC_TELEMETRY
-  register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_PATH_INTEGRAL, pi_telem_send);
-#endif
+//#if PERIODIC_TELEMETRY
+  //register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_PATH_INTEGRAL, pi_telem_send);
+//#endif
 
 }
 
 
 void compute_optimal_controls_periodic(){
 
-  clock_t start, end;
-  float cpu_time_used;
+  //clock_t start, end;
+  //float cpu_time_used;
 
-  setState(); //&st
+  setState(&st2); //&st
 
-  start = clock();
-  compute_optimal_controls(); //&pi, &st, &in//compute_optimal_controls(&pi);
-  end = clock();
+  //start = clock();
+  compute_optimal_controls(&pi2, &st2, &in); //&pi, &st, &in//compute_optimal_controls(&pi);
+  //end = clock();
 
   //printf("*controls %f\n", *controls);
-  cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+  //cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
 
-  printf("------ ELAPSED TIME: %f\n----------",cpu_time_used);
-  printf("Controls 0: %f , Controls 1: %f\n", in.oc_x, in.oc_y);
+  //printf("------ ELAPSED TIME: %f\n----------",cpu_time_used);
+  //printf("Controls 0: %f , Controls 1: %f\n", in.oc_x, in.oc_y);
 }
 
 

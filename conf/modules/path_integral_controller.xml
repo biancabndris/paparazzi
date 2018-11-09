@@ -12,6 +12,6 @@
   <makefile target="ap">
     <file name="path_integral_controller.c"/>
     <file name="sampler.c"/>
-    <flag name="LDFLAGS" value="lgsl"/>
+    <!--flag name="LDFLAGS" value="lgsl"/-->
   </makefile>
 </module>
