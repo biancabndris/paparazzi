@@ -20,7 +20,6 @@
       <message name="DATALINK_REPORT"        period="5.1"/>
       <message name="STATE_FILTER_STATUS"    period="3.2"/>
       <message name="AIR_DATA"               period="1.3"/>
-      <message name="RELATIVE_AC"            period="3"/>
       <message name="PI_TIMING"              period="0.5"/>
       <message name="PATH_INTEGRAL"          period="0.05"/>
     </mode>

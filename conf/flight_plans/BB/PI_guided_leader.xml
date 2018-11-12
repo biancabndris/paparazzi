@@ -51,7 +51,7 @@ static inline void obstacle_detection_cb(uint8_t sender_id __attribute__((unused
 	  <variable var="turn_rate" init=".5f" type="float" min="0." max="10." step="0.1"/>
    	  <variable var="climb_descent_vel" init="0.3f" type="float" min="0." max="1" step="0.1"/>
     	  <variable var="forward_vel" init="0.3f" type="float" min="0." max="2" step="0.1"/>
-	  <variable var="nominal_alt" init="0.5f" type="float" min="0." max="10." step="0.1"/>
+	  <variable var="nominal_alt" init="1.0f" type="float" min="0." max="10." step="0.1"/>
 	  <variable var="task" init="0" type="int" min="0" max="2" step="1"/>
 	  <abi_binding name="PATH_INTEGRAL" vars="id,opt_vel_x, opt_vel_y"/>
    </variables>
@@ -82,7 +82,8 @@ static inline void obstacle_detection_cb(uint8_t sender_id __attribute__((unused
       <call_once fun="autopilot_guided_update(GUIDED_FLAG_XY_OFFSET_Z_VEL,0.,0.,-climb_descent_vel,desired_heading)"/>
       <while cond="LessThan(stateGetPositionEnu_f()->z,nominal_alt-0.2)"></while>
 	<call_once fun="autopilot_guided_update(GUIDED_FLAG_XY_OFFSET,0.,0.,-nominal_alt,desired_heading)"/>
-      <while cond="LessThan(stage_time,3)"/>
+      <while cond="LessThan(stage_time,1)"/>
+      <deroute block="Follow_wps"/>
     </block>
 
 <!-- Follow WPs (Leader)-->
@@ -115,48 +116,48 @@ static inline void obstacle_detection_cb(uint8_t sender_id __attribute__((unused
       <while cond="LessThan(block_time,120)">
 	<call_once fun="guidance_h_set_guided_vel(opt_vel_x,opt_vel_y)"/>
       </while>
-     <exception cond="stateGetBodyRates_f()->r>0.1" deroute="Fix yaw"/>
+     <!--exception cond="stateGetBodyRates_f()->r>0.1" deroute="Fix yaw"/-->
      <deroute block="Hover"/>
     </block>
 
-    <block name="Cat">
+    <!--block name="Cat">
        <set var="task" value="3"/>
       <while cond="LessThan(block_time,120)">
 	<call_once fun="guidance_h_set_guided_vel(opt_vel_x,opt_vel_y)"/>
       </while>
       <exception cond="stateGetBodyRates_f()->r>0.1" deroute="Fix yaw"/>
      <deroute block="Hover"/>
-    </block>
+    </block-->
 
-    <block name="Mouse">
+    <!--block name="Mouse">
        <set var="task" value="4"/>
       <while cond="LessThan(block_time,120)">
 	<call_once fun="guidance_h_set_guided_vel(opt_vel_x,opt_vel_y)"/>
       </while>
       <exception cond="stateGetBodyRates_f()->r>0.1" deroute="Fix yaw"/>
      <deroute block="Hover"/>
-    </block>
+    </block-->
 
 
 <!-- Fix yaw -->
     <block name="Fix yaw">
       <call_once fun="guidance_h_set_guided_heading_rate(0.0f)" />
       <while cond="LessThan(stage_time,1)"/>
-      <while cond="task == 0">
+      <!--while cond="task == 0">
       	<deroute block="Follow_wps"/>
       </while>
       <while cond="task == 1">
       	<deroute block="Follow_leader"/>
-      </while>
-      <while cond="task == 2">
+      </while-->
+      <!--while cond="task == 2"-->
       	<deroute block="Circling"/>
-      </while>
-      <while cond="task == 3">
+      <!--while-->
+      <!--while cond="task == 3">
       	<deroute block="Cat"/>
       </while>
       <while cond="task == 4">
       	<deroute block="Mouse"/>
-      </while>
+      </while-->
 
     </block>
 

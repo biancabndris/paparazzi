@@ -75,6 +75,9 @@ static void relative_ac_telem_send(struct transport_tx *trans, struct link_devic
 #ifndef TRAJ_THR
 #define TRAJ_THR 0.4
 #endif
+#ifndef NUM_WPS
+#define NUM_WPS 4
+#endif
 
 static void *pi_calc_thread(void *arg);
 void set_wp(void);
@@ -285,8 +288,8 @@ uint8_t pi_circle_wp(void){
 void set_wp(void){
 
   if(pi.TASK == 0){
-    uint8_t target_wp[4] = {WP_p0,WP_p1,WP_p2,WP_p3};
-    for(int i = 0; i < 4; i++){
+    uint8_t target_wp[NUM_WPS] = {WP_p0,WP_p1,WP_p2,WP_p3};
+    for(int i = 0; i < NUM_WPS; i++){
       trajectory.wps[i].pos_N = waypoint_get_x(target_wp[i]);
       trajectory.wps[i].pos_E = waypoint_get_y(target_wp[i]);
       trajectory.wps[i].wp_index = i;
@@ -311,7 +314,7 @@ void check_wp(void){
   struct EnuCoor_i current_wp = {wp.pos_E/0.0039063, wp.pos_N/0.0039063, 1/0.0039063};
   float dist = get_dist2_to_point(&current_wp);
   if(dist < TRAJ_THR*TRAJ_THR){
-    if(wp.wp_index < 3){
+    if(wp.wp_index < NUM_WPS-1){
       int index = wp.wp_index + 1;
       wp.pos_N = trajectory.wps[index].pos_N;
       wp.pos_E = trajectory.wps[index].pos_E;

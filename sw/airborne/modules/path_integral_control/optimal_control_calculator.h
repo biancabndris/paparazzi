@@ -91,8 +91,6 @@ static inline void set_state(struct pi_state_t *st, uint8_t rel_units){
 
 
   uint8_t *ac_ids = acInfoGetAcIds();
-  //int rel_units = sizeof(st->pos_rel)/sizeof(float);
-  //int rel_units = 3;
   for(uint8_t u=0; u< rel_units; u++){
 
     uint8_t follower_id = *(ac_ids+2+u);
@@ -106,29 +104,6 @@ static inline void set_state(struct pi_state_t *st, uint8_t rel_units){
   }
 
 }
-
-
-
-/*
-static inline void set_trajectory(struct traj_t *trajectory){
-
-  trajectory->wps[0].pos_N = -1.5;
-  trajectory->wps[0].pos_E = -1;
-  trajectory->wps[0].wp_index = 0;
-
-  trajectory->wps[1].pos_N = -1.5;
-  trajectory->wps[1].pos_E = 1;
-  trajectory->wps[1].wp_index = 1;
-
-  trajectory->wps[2].pos_N = 1.5;
-  trajectory->wps[2].pos_E = 1;
-  trajectory->wps[2].wp_index = 2;
-
-  trajectory->wps[3].pos_N = 1.5;
-  trajectory->wps[3].pos_E = -1;
-  trajectory->wps[3].wp_index = 3;
-}
-*/
 
 
 #endif

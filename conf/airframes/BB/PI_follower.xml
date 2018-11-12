@@ -44,8 +44,11 @@
     </module-->
     <module name="traffic_info"/>
     <module name="path_integral_control" >
-      <define name="PI_LEADER" value="0"/>
+	<define name= "PI_TASK" value="1"/>
+	<define name= "PI_SAMPLING_METHOD" value="1"/>
+	<define name= "PI_SAMPLES" value="100"/>
     </module>
+    <module name="sys_mon"/>
   </modules>
 
   <commands>

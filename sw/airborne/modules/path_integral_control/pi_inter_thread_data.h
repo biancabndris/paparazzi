@@ -29,7 +29,7 @@
 
 #include "math/pprz_algebra_float.h"
 
-// The result of the optimal control calculation given as x and y velocities
+// The result of the optimal control calculation given as x and y body velocities
 struct pi_result_t{
   struct FloatVect2 vel;
   float  variance;
