@@ -24,6 +24,27 @@
 //#include <gsl/gsl_randist.h>
 //#include <stdlib.h>
 
+#include "../../subsystems/navigation/waypoints.h"
+#include "navigation.h"
+#include "generated/flight_plan.h"
+
+
+
+#ifndef TRAJ_THR
+#define TRAJ_THR 0.4
+#endif
+#ifndef NUM_WPS
+#define NUM_WPS 4
+#endif
+
+
+struct PIController pi;
+struct pi_state_t st;
+struct pi_result_t pi_result;
+struct pi_wp_t wp;
+struct traj_t trajectory;
+float start, stop, elapsed_time;
+
 #if PERIODIC_TELEMETRY
 #include "subsystems/datalink/telemetry.h"
 /**
@@ -32,46 +53,93 @@
  * @param[in] *dev The link to send the data over
  */
 
-/*static void pi_telem_send(struct transport_tx *trans, struct link_device *dev)
+static void pi_telem_send(struct transport_tx *trans, struct link_device *dev)
 {
 
   pprz_msg_send_PATH_INTEGRAL(trans, dev, AC_ID,
-                               &in.oc_x, &in.oc_y); // TODO: no noise measurement here...
-}*/
+                               &pi_result.vel.x, &pi_result.vel.y,  &pi_result.variance, &wp.pos_E, &wp.pos_N, &pi.TASK, &pi.SAMPLING_METHOD, &pi.BEST_PROBE);
+
+}
+
+
+static void pi_timing_send(struct transport_tx *trans, struct link_device *dev)
+{
+
+  pprz_msg_send_PI_TIMING(trans, dev, AC_ID, &start, &stop, &elapsed_time);
+
+}
 #endif
 
-struct PIController pi2;
-struct Input in;
-struct PIstate st2;
+void set_wp(void);
+void check_wp(void);
 
 void pi_init() {
 
-  PIController_init(&pi2);//&pi
-  initInput(&in); //&in
+  PIController_init(&pi);
+  set_state(&st, pi.rel_units);
+  set_wp();
 
-//#if PERIODIC_TELEMETRY
-  //register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_PATH_INTEGRAL, pi_telem_send);
-//#endif
+
+#if PERIODIC_TELEMETRY
+  register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_PATH_INTEGRAL, pi_telem_send);
+  register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_PATH_INTEGRAL, pi_timing_send);
+#endif
+
 
 }
 
 
 void compute_optimal_controls_periodic(){
 
-  //clock_t start, end;
-  //float cpu_time_used;
 
-  setState(&st2); //&st
 
-  //start = clock();
-  compute_optimal_controls(&pi2, &st2, &in); //&pi, &st, &in//compute_optimal_controls(&pi);
-  //end = clock();
+  start = get_sys_time_float();
 
-  //printf("*controls %f\n", *controls);
-  //cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+  set_state(&st, pi.rel_units);
+  compute_optimal_controls(&pi, &st, &wp, &pi_result);
+  check_wp();
 
-  //printf("------ ELAPSED TIME: %f\n----------",cpu_time_used);
-  //printf("Controls 0: %f , Controls 1: %f\n", in.oc_x, in.oc_y);
+  stop = get_sys_time_float();
+  elapsed_time = stop - start;
+
+
 }
 
+
+void set_wp(void){
+
+
+  uint8_t target_wp[NUM_WPS] = {WP_p0,WP_p1,WP_p2,WP_p3};
+  for(int i = 0; i < NUM_WPS; i++){
+    trajectory.wps[i].pos_N = waypoint_get_x(target_wp[i]);
+    trajectory.wps[i].pos_E = waypoint_get_y(target_wp[i]);
+    trajectory.wps[i].wp_index = i;
+  }
+  wp.pos_N = trajectory.wps[0].pos_N;
+  wp.pos_E = trajectory.wps[0].pos_E;
+  wp.wp_index = trajectory.wps[0].wp_index;
+
+}
+
+
+void check_wp(void){
+
+  struct EnuCoor_i current_wp = {wp.pos_E/0.0039063, wp.pos_N/0.0039063, 1/0.0039063};
+  float dist = get_dist2_to_point(&current_wp);
+  if(dist < TRAJ_THR*TRAJ_THR){
+    if(wp.wp_index < NUM_WPS-1){
+      int index = wp.wp_index + 1;
+      wp.pos_N = trajectory.wps[index].pos_N;
+      wp.pos_E = trajectory.wps[index].pos_E;
+      wp.wp_index = index;
+    }
+    else{
+      int index2 = 0;
+      wp.pos_N = trajectory.wps[index2].pos_N;
+      wp.pos_E = trajectory.wps[index2].pos_E;
+      wp.wp_index = index2;
+    }
+  }
+
+}
 
