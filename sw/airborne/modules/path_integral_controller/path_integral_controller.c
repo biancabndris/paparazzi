@@ -44,7 +44,7 @@ struct pi_result_t pi_result;
 struct pi_wp_t wp;
 struct traj_t trajectory;
 float start, stop, elapsed_time;
-
+int counter, iterations;
 #if PERIODIC_TELEMETRY
 #include "subsystems/datalink/telemetry.h"
 /**
@@ -65,7 +65,7 @@ static void pi_telem_send(struct transport_tx *trans, struct link_device *dev)
 static void pi_timing_send(struct transport_tx *trans, struct link_device *dev)
 {
 
-  pprz_msg_send_PI_TIMING(trans, dev, AC_ID, &start, &stop, &elapsed_time);
+  pprz_msg_send_PI_TIMING(trans, dev, AC_ID, &pi.N, &start, &stop, &elapsed_time);
 
 }
 #endif
@@ -78,7 +78,8 @@ void pi_init() {
   PIController_init(&pi);
   set_state(&st, pi.rel_units);
   set_wp();
-
+  counter = 0;
+  iterations = 1;
 
 #if PERIODIC_TELEMETRY
   register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_PATH_INTEGRAL, pi_telem_send);
@@ -92,7 +93,11 @@ void pi_init() {
 void compute_optimal_controls_periodic(){
 
 
-
+  if (counter == 50 && iterations < 20){
+    iterations += 1;
+    pi.N = iterations * 100;
+    counter = 0;
+  }
   start = get_sys_time_float();
 
   set_state(&st, pi.rel_units);
@@ -101,7 +106,7 @@ void compute_optimal_controls_periodic(){
 
   stop = get_sys_time_float();
   elapsed_time = stop - start;
-
+  counter += 1;
 
 }
 
