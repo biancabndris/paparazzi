@@ -361,7 +361,7 @@ static inline void stabilization_indi_calc_cmd(int32_t indi_commands[], struct I
 #else
   Bound(indi.u_in.p, -4500, 4500);
   Bound(indi.u_in.q, -4500, 4500);
-  Bound(indi.u_in.r, -5500, 5500);
+  Bound(indi.u_in.r, -4500, 4500);
 #endif
 
   //Propagate input filters

@@ -27,15 +27,15 @@ static inline void obstacle_detection_cb(uint8_t sender_id __attribute__((unused
   <waypoints>
     <waypoint name="HOME"      x="0.0"         y = "0.0"  />
     <waypoint name="STDBY"     x="0.0"         y = "0.0"  />
-    <waypoint name="p0"        x="1.0"        y = "1.0" />
+    <waypoint name="p0"        x="1.0"        y = "1.0"   />
     <waypoint name="p1"        x="-1.0"        y = "1.0"  />
-    <waypoint name="p2"        x="-1.0"	       y = "-1.0"  />
-    <waypoint name="p3"        x="1.0"         y = "-1.0" />
+    <waypoint name="p2"        x="-1.0"	       y = "-1.0" />
+    <waypoint name="p3"        x="1.0"         y = "-1.0" /> 
     <waypoint name="centre"    x="0.0"         y = "0.0"  />
-    <waypoint lat="51.9905836" lon="4.3767729" name="_CZ1"/>
-    <waypoint lat="51.9906365" lon="4.3767138" name="_CZ2"/>
-    <waypoint lat="51.990680"  lon="4.376805"  name="_CZ3"/>
-    <waypoint lat="51.9906226" lon="4.3768699" name="_CZ4"/>
+    <waypoint lat="51.9905860" lon="4.3767699" name="_CZ1"/>
+    <waypoint lat="51.9906463" lon="4.3767083" name="_CZ2"/>
+    <waypoint lat="51.9906837" lon="4.3768072"  name="_CZ3"/>
+    <waypoint lat="51.9906233" lon="4.3768697" name="_CZ4"/>
   </waypoints>
   <sectors>
     <sector color="red" name="CyberZoo">
@@ -83,7 +83,7 @@ static inline void obstacle_detection_cb(uint8_t sender_id __attribute__((unused
       <while cond="LessThan(stateGetPositionEnu_f()->z,nominal_alt-0.2)"></while>
 	<call_once fun="autopilot_guided_update(GUIDED_FLAG_XY_OFFSET,0.,0.,-nominal_alt,desired_heading)"/>
       <while cond="LessThan(stage_time,1)"/>
-      <deroute block="Follow_wps"/>
+      <deroute block="Follow_leader"/>
     </block>
 
 <!-- Follow WPs (Leader)-->
@@ -111,8 +111,8 @@ static inline void obstacle_detection_cb(uint8_t sender_id __attribute__((unused
 
 <!-- Circling -->
     <block name="Circling">
-      <call_once fun="pi_circle_wp()"/>
-      <set var="task" value="pi_circle_wp()"/>
+      <!--call_once fun="pi_circle_wp()"/>
+      <set var="task" value="pi_circle_wp()"/-->
       <while cond="LessThan(block_time,120)">
 	<call_once fun="guidance_h_set_guided_vel(opt_vel_x,opt_vel_y)"/>
       </while>
@@ -120,23 +120,21 @@ static inline void obstacle_detection_cb(uint8_t sender_id __attribute__((unused
      <deroute block="Hover"/>
     </block>
 
-    <!--block name="Cat">
-       <set var="task" value="3"/>
+    <block name="Cat">
       <while cond="LessThan(block_time,120)">
 	<call_once fun="guidance_h_set_guided_vel(opt_vel_x,opt_vel_y)"/>
       </while>
-      <exception cond="stateGetBodyRates_f()->r>0.1" deroute="Fix yaw"/>
+       <!--exception cond="stateGetBodyRates_f()->r>0.1" deroute="Fix yaw"/-->
      <deroute block="Hover"/>
-    </block-->
+    </block>
 
-    <!--block name="Mouse">
-       <set var="task" value="4"/>
+    <block name="Mouse">
       <while cond="LessThan(block_time,120)">
 	<call_once fun="guidance_h_set_guided_vel(opt_vel_x,opt_vel_y)"/>
       </while>
-      <exception cond="stateGetBodyRates_f()->r>0.1" deroute="Fix yaw"/>
+      <!--exception cond="stateGetBodyRates_f()->r>0.1" deroute="Fix yaw"/-->
      <deroute block="Hover"/>
-    </block-->
+    </block>
 
 
 <!-- Fix yaw -->

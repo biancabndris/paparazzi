@@ -38,14 +38,15 @@ struct pi_result_t{
 struct pi_vectNE_t{
     float N;
     float E;
+    uint8_t AC_id;
 };
 
 struct pi_state_t{
    float pos[2];
    float vel[2];
    float psi;
-   struct pi_vectNE_t pos_rel[1];
-   struct pi_vectNE_t vel_rel[1];
+   struct pi_vectNE_t pos_rel[3];
+   struct pi_vectNE_t vel_rel[3];
 };
 
 struct pi_wp_t{

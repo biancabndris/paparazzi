@@ -46,9 +46,13 @@
     </module-->
     <module name="traffic_info"/>
     <module name="path_integral_control" >
-	<define name= "PI_TASK" value="0"/>
+	<define name= "PI_TASK" value="1"/>
 	<define name= "PI_SAMPLING_METHOD" value="2"/>
-	<define name= "PI_SAMPLES" value="100"/>
+	<define name= "PI_SAMPLES"   value="100"/>
+	<define name= "PI_REL_UNITS" value="3"/>
+	<define name= "PI_MIN_SPEED" value="0.15"/>
+	<define name= "PI_MAX_SPEED" value="1"/>
+	<define name= "PI_COHESION_DISTANCE" value="2.25"/> 	<!--"2.25 4 / 6.25"/-->
     </module>
     <module name= "sys_mon"/>
   </modules>

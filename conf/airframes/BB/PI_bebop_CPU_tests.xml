@@ -44,7 +44,7 @@
     <module name="path_integral_controller" >
 	<define name= "PI_SAMPLING_METHOD" value="2"/>
 	<define name= "PI_SAMPLES"   value="100"/>
-	<define name= "PI_REL_UNITS" value="3"/>
+	<define name= "PI_REL_UNITS" value="1"/>
     </module>
     <module name= "sys_mon"/>
   </modules>

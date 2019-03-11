@@ -31,6 +31,7 @@
 #include "state.h"
 #include "subsystems/abi.h"
 #include "modules/multi/traffic_info.h"
+#include "filters/low_pass_filter.h"
 
 #include "../../subsystems/navigation/waypoints.h"
 #include "navigation.h"
@@ -45,8 +46,8 @@ struct traj_t trajectory;
 static bool pi_got_result;
 static pthread_t path_integral_thread;
 static pthread_mutex_t pi_mutex;
-
-
+Butterworth2LowPass comm_vel[2];
+float filtered_result[2];
 #if PERIODIC_TELEMETRY
 #include "subsystems/datalink/telemetry.h"
 
@@ -59,10 +60,10 @@ static void pi_telem_send(struct transport_tx *trans, struct link_device *dev)
 {
   pthread_mutex_lock(&pi_mutex);
   pprz_msg_send_PATH_INTEGRAL(trans, dev, AC_ID,
-                               &pi_result.vel.x, &pi_result.vel.y,  &pi_result.variance, &wp.pos_E, &wp.pos_N, &pi.TASK, &pi.SAMPLING_METHOD, &pi.BEST_PROBE);
+      &pi_result.vel.x, &pi_result.vel.y, &pi_result.variance, &wp.pos_E, &wp.pos_N, &pi.TASK, &pi.SAMPLING_METHOD, &pi.BEST_PROBE);
   pthread_mutex_unlock(&pi_mutex);
 }
-
+//&filtered_result[0], &filtered_result[1], &pi_result.vel.x, &pi_result.vel.y
 static void relative_ac_telem_send(struct transport_tx *trans, struct link_device *dev)
 {
   pthread_mutex_lock(&pi_mutex);
@@ -78,14 +79,26 @@ static void relative_ac_telem_send(struct transport_tx *trans, struct link_devic
 #ifndef NUM_WPS
 #define NUM_WPS 4
 #endif
+#ifndef DELAY
+#define DELAY 0
+#endif
 
 static void *pi_calc_thread(void *arg);
 void set_wp(void);
 void check_wp(void);
+void pi_init_filters(void);
+//bool check_wp_followers(void);
 
 int counter, counter_probe;
+uint8_t leader_pos_index = 0;
+uint8_t f_index = DELAY;
+float LeaderPos[1200][2];
 float delayed_N = 0.0;
 float delayed_E = 0.0;
+bool leader_set = false;
+bool catched = false;
+bool pi_start = false;
+uint8_t laps = 0;
 /**
  * Initialize the path integral module
  */
@@ -97,8 +110,11 @@ void pi_init(void)
 
   // Update state information
   set_state(&st, pi.rel_units);
+  // Find leader index
 
   set_wp();
+
+
   counter = 0;
   counter_probe = 0;
   //set_trajectory(&trajectory);
@@ -109,7 +125,7 @@ void pi_init(void)
   //wp.pos_N = trajectory.wps[0].pos_N;
   //wp.pos_E = trajectory.wps[0].pos_E;
   //wp.wp_index = trajectory.wps[0].wp_index;
-
+  //pi_init_filters();
 
 #if PERIODIC_TELEMETRY
   register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_PATH_INTEGRAL, pi_telem_send);
@@ -175,7 +191,6 @@ static void *pi_calc_thread(void *arg __attribute__((unused)))
     pi_got_result = success;
     pthread_mutex_unlock(&pi_mutex);
 
-    //printf("CONTROLS 0: %f , Controls 1: %f\n", temp_result.vel.x, temp_result.vel.y);
 
     clock_gettime(CLOCK_MONOTONIC, &finish);
     elapsed = (finish.tv_sec - start.tv_sec);
@@ -192,7 +207,6 @@ static void *pi_calc_thread(void *arg __attribute__((unused)))
     clock_gettime(CLOCK_MONOTONIC, &finish2);
     elapsed2 = (finish2.tv_sec - start.tv_sec);
     elapsed2 += (finish2.tv_nsec - start.tv_nsec) / 1000000000.0;
-    printf("TIME2 %f\n", elapsed2);
 
       }
   return 0;
@@ -209,23 +223,47 @@ void pi_run(void){
   set_state(&st, pi.rel_units);
   check_wp();
 
-  if(pi.TASK == 0){
-   // check_wp();
-  }
-
-  else if(pi.TASK == 3 || pi.TASK == 4){
-    /*float THR = 3;//0.3;
-    float dist_cats_mouse = 0;
-    for(uint8_t u = 0; u < pi.rel_units; u++){
-      dist_cats_mouse += (st.pos[0]- st.pos_rel[u].N) * (st.pos[0]- st.pos_rel[u].N) + (st.pos[1]- st.pos_rel[u].E ) * (st.pos[1]- st.pos_rel[u].E);
+  if(!leader_set && pi.TASK == 1){
+    for(uint8_t i = 0; i< pi.rel_units; i++){
+      //printf("ac id %d leader id %d \n", st.pos_rel[i].AC_id, pi.following_id);
+      if(st.pos_rel[i].AC_id == pi.following_id){
+        pi.following_index = i;
+        leader_set = true;
+      }
     }
-    if(dist_cats_mouse < THR){
-      pi_result.vel.x = 0.0;
-      pi_result.vel.y = 0.0;
-    }*/
+
+    //printf("leader id %d \n",pi.following_index);
   }
 
-    if (pi_got_result){
+  //printf("check state %d\n", pi_got_result);
+  //if(pi.TASK == 0){
+   // check_wp();
+  //}
+
+
+
+  if (pi_got_result){
+    /*if(catched){
+      uint32_t now_ts = get_sys_time_usec();
+      AbiSendMsgPATH_INTEGRAL(PATH_INTEGRAL_ID, now_ts,
+          0.0,
+          0.0);
+      pi_got_result = false;
+    }else{*/
+
+    //update_butterworth_2_low_pass(&comm_vel[0], pi_result.vel.x);
+    //update_butterworth_2_low_pass(&comm_vel[1], pi_result.vel.y);
+    //printf("vel %f, filtered %f\n", pi_result.vel.x,comm_vel[0].o[0]);
+
+    //pi_result.vel.x = comm_vel[0].o[0];
+    //pi_result.vel.y = comm_vel[1].o[0];
+    //Bound(pi_result.vel.x ,-pi.MAX_SPEED, pi.MAX_SPEED);
+    //Bound(pi_result.vel.x ,-pi.MAX_SPEED, pi.MAX_SPEED);
+
+    if(!isnan(pi_result.vel.x) && !isnan(pi_result.vel.y) ){
+      //filtered_result[0] = pi_result.vel.x;
+      //filtered_result[1] = pi_result.vel.y;
+
       uint32_t now_ts = get_sys_time_usec();
       AbiSendMsgPATH_INTEGRAL(PATH_INTEGRAL_ID, now_ts,
           pi_result.vel.x,
@@ -233,22 +271,60 @@ void pi_run(void){
       pi_got_result = false;
     }
 
+
+
+    //}
+  }
+
     //////////////////////////////////////
 
-    if(pi.TASK == 1){
-      if(counter == 0){
-        delayed_N = st.pos_rel[0].N;
-        delayed_E = st.pos_rel[0].E;
-      }
+    /*if(pi.TASK == 1 && pi_start){
+
       if(counter == 40){
-        wp.pos_N = delayed_N;
-        wp.pos_E = delayed_E;
+        if(leader_pos_index < 1200){
+          LeaderPos[leader_pos_index][0] = st.pos_rel[pi.following_index].N;
+          LeaderPos[leader_pos_index][1] = st.pos_rel[pi.following_index].E;
+
+        }else{
+          leader_pos_index = 0;
+          LeaderPos[leader_pos_index][0] = st.pos_rel[pi.following_index].N;
+          LeaderPos[leader_pos_index][1] = st.pos_rel[pi.following_index].E;
+
+        }
+
+        if(leader_pos_index >= DELAY){
+          wp.pos_N = LeaderPos[leader_pos_index][0];
+          wp.pos_E = LeaderPos[leader_pos_index][1];
+        }else{
+          wp.pos_N = st.pos[0];
+          wp.pos_E = st.pos[1];
+        }
+        bool next = check_wp_followers();
+        if(next){
+          f_index += 1;
+
+        }
+        leader_pos_index += 1;
         counter = -1;
       }
-      counter++;
 
+        if(counter == 0){
+          delayed_N = st.pos_rel[0].N;
+          delayed_E = st.pos_rel[0].E;
+        }
+        if(counter == 40){
+          wp.pos_N = delayed_N;
+          wp.pos_E = delayed_E;
+          counter = -1;
+        }
+
+      counter++;
     }
+*/
     ////////////////////////////////////
+
+
+
 
   pthread_mutex_unlock(&pi_mutex);
 
@@ -271,6 +347,7 @@ uint8_t pi_follow_leader(void){
   pi.TASK = 1;
   printf("[task] Task changed to follower");
   init_controls(&pi);
+  //pi_start = true;
   return pi.TASK;
 }
 
@@ -315,17 +392,55 @@ void check_wp(void){
   float dist = get_dist2_to_point(&current_wp);
   if(dist < TRAJ_THR*TRAJ_THR){
     if(wp.wp_index < NUM_WPS-1){
-      int index = wp.wp_index + 1;
-      wp.pos_N = trajectory.wps[index].pos_N;
-      wp.pos_E = trajectory.wps[index].pos_E;
-      wp.wp_index = index;
+/*      uint8_t wp_index;
+      if(laps >= 2){
+        wp_index = wp.wp_index - 1;
+      }
+      else{
+        wp_index = wp.wp_index + 1;
+      }*/
+      uint8_t wp_index = wp.wp_index + 1;
+      wp.pos_N = trajectory.wps[wp_index].pos_N;
+      wp.pos_E = trajectory.wps[wp_index].pos_E;
+      wp.wp_index = wp_index;
     }
     else{
-      int index2 = 0;
-      wp.pos_N = trajectory.wps[index2].pos_N;
-      wp.pos_E = trajectory.wps[index2].pos_E;
-      wp.wp_index = index2;
+/*      if(laps >= 2 ){
+        wp.pos_N = trajectory.wps[NUM_WPS-2].pos_N;
+        wp.pos_E = trajectory.wps[NUM_WPS-2].pos_E;
+        wp.wp_index = NUM_WPS-2;
+      }*/
+      wp.pos_N = trajectory.wps[0].pos_N;
+      wp.pos_E = trajectory.wps[0].pos_E;
+      wp.wp_index = 0;
+      //laps += 1;
     }
   }
 
 }
+
+/*bool check_wp_followers(void){
+  bool reached = false;
+  struct EnuCoor_i current_wp = {wp.pos_E/0.0039063, wp.pos_N/0.0039063, 1/0.0039063};
+  float dist = get_dist2_to_point(&current_wp);
+  if(dist < TRAJ_THR*TRAJ_THR){
+    reached = true;
+
+  }
+  return reached;
+}*/
+
+void pi_init_filters(void)
+{
+  // tau = 1/(2*pi*Fc)
+  float tau = 1.0 / (2.0 * M_PI * 20);
+  float sample_time = 1.0 / 15;
+  // Filtering of gyroscope and actuators
+  for (int8_t i = 0; i < 2; i++) {
+    init_butterworth_2_low_pass(&comm_vel[i], tau, sample_time, 0.0);
+
+  }
+}
+
+
+

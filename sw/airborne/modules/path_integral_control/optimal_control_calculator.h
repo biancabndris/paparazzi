@@ -64,9 +64,12 @@ struct path_integral_t{
    int PROBE_ANGLE;
    uint8_t NUM_PROBES;
    uint8_t BEST_PROBE;
+   float MAX_ACC;
 
    uint8_t rel_units;
    uint8_t dimU;
+   uint8_t following_id;
+   uint8_t following_index;
 
    gsl_rng *seed;
 
@@ -91,19 +94,27 @@ static inline void set_state(struct pi_state_t *st, uint8_t rel_units){
 
 
   uint8_t *ac_ids = acInfoGetAcIds();
+  //uint8_t id = 1;
   for(uint8_t u=0; u< rel_units; u++){
 
     uint8_t follower_id = *(ac_ids+2+u);
-    struct EnuCoor_f *ac_pos = acInfoGetPositionEnu_f(follower_id);
-    st->pos_rel[u].N = ac_pos->y;
-    st->pos_rel[u].E = ac_pos->x;
 
-    struct EnuCoor_f *ac_vel = acInfoGetVelocityEnu_f(follower_id);
-    st->vel_rel[u].N = ac_vel->y;
-    st->vel_rel[u].E = ac_vel->x;
+   struct EnuCoor_f *ac_pos = acInfoGetPositionEnu_f(follower_id);
+   st->pos_rel[u].N = ac_pos->y;
+   st->pos_rel[u].E = ac_pos->x;
+   st->pos_rel[u].AC_id = follower_id;
+
+   struct EnuCoor_f *ac_vel = acInfoGetVelocityEnu_f(follower_id);
+   st->vel_rel[u].N = ac_vel->y;
+   st->vel_rel[u].E = ac_vel->x;
+   st->vel_rel[u].AC_id = follower_id;
+
   }
 
 }
+
+
+
 
 
 #endif
