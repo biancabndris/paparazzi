@@ -1,6 +1,6 @@
 <!DOCTYPE module SYSTEM "module.dtd">
 
-<module name="path_integral_controller">
+<module name="path_integral_no_thread">
   <doc>
     <description>Run a path integral algorithm and measure the running time needed to perform the computations</description>
   </doc>

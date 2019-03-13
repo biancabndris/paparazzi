@@ -5,14 +5,14 @@
  *
  */
 /**
- * @file "modules/computation_time_v2/computation_time.c"
+ * @file "modules/path_integral_no_thread/path_integral_controller.c"
  * @author Bianca Bendris
  * Run a path integral algorithm and measure the running time needed to perform the computations
  */
 
 
-#include "modules/path_integral_controller/path_integral_controller.h"
-#include "modules/path_integral_controller/sampler.h"
+#include "modules/path_integral_no_thread/path_integral_controller.h"
+#include "modules/path_integral_no_thread/sampler.h"
 #include  <stdio.h>
 #include  "mcu_periph/sys_time.h"
 
@@ -20,9 +20,7 @@
 #include <math.h>
 #include "math/pprz_algebra.h"
 #include "math/pprz_algebra_float.h"
-//#include <gsl/gsl_rng.h>
-//#include <gsl/gsl_randist.h>
-//#include <stdlib.h>
+
 
 #include "../../subsystems/navigation/waypoints.h"
 #include "navigation.h"

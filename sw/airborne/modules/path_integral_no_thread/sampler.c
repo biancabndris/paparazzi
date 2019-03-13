@@ -5,7 +5,7 @@
  *
  */
 /**
- * @file "modules/computation_time_v2/piControllerpi.c"
+ * @file "modules/path_integral_no_thread/sampler.c"
  * @author Bianca Bendris
  *
  */
@@ -13,11 +13,9 @@
 #include "math/pprz_algebra.h"
 #include "math/pprz_algebra_float.h"
 #include <math/pprz_simple_matrix.h>
-//#include <gsl/gsl_rng.h>
-//#include <gsl/gsl_randist->h>
-//#include <stdlib.h>
 
-#include "modules/path_integral_controller/sampler.h"
+
+#include "modules/path_integral_no_thread/sampler.h"
 #include  <time.h>
 
 #ifndef PI_FREQ
@@ -39,16 +37,16 @@
 #define PI_SAMPLES 100
 #endif
 #ifndef PI_COLLISION_DISTANCE
-#define PI_COLLISION_DISTANCE 1//0.25//2.25
+#define PI_COLLISION_DISTANCE 1
 #endif
 #ifndef PI_COHESION_DISTANCE
-#define PI_COHESION_DISTANCE 2.25////6.25
+#define PI_COHESION_DISTANCE 2.25
 #endif
 #ifndef PI_COLLISION_PENALTY
-#define PI_COLLISION_PENALTY 11//40//10
+#define PI_COLLISION_PENALTY 11
 #endif
 #ifndef PI_COHESION_PENALTY
-#define PI_COHESION_PENALTY 1//0.1//5
+#define PI_COHESION_PENALTY 1
 #endif
 #ifndef PI_TARGET_PENALTY
 #define PI_TARGET_PENALTY 50
@@ -96,7 +94,7 @@
 #define PI_PROBE_ANGLE 15
 #endif
 #ifndef PI_NUM_PROBES
-#define PI_NUM_PROBES 7 // 7
+#define PI_NUM_PROBES 7
 #endif
 
 
@@ -188,32 +186,7 @@ void compute_optimal_controls(struct PIController *pi, struct pi_state_t *st, st
     initial_state.vel_rel[a].N = st->vel_rel[a].N;
     initial_state.vel_rel[a].E = st->vel_rel[a].E;
   }
-/*  switch (pi->SAMPLING_METHOD){
 
-      case 0 :
-
-      {break;}
-
-      case 2 :
-
-      {
-        //printf("[sampling] Sampling method 2.\n");
-
-        MAKE_MATRIX_PTR(u_roll_ptr, u_roll, pi->iH);
-        float best_probe_vel[pi->dimU];
-
-        //todo remove sampling method and probe from function, already pass the pi pointer
-        select_probe(pi->SAMPLING_METHOD, pi->NUM_PROBES, pi->PROBE_ANGLE, u_roll_ptr, pi, st, wp, &best_probe_vel[0]);
-
-        //printf("[sampling] Best probe %f, %f \n",best_probe_vel[0], best_probe_vel[1]);
-        //printf("[sampling] Modified U %f, %f\n",u_roll[0][0], u_roll[0][1]);
-
-        //printf("[sampling] Adjusted U %f, %f, diff %f, initial vel %f \n",u_roll[0][0], u_roll[0][1],(best_probe_vel[0] - initial_state.vel[0]), initial_state.vel[0]);
-        initial_state.vel[0] = best_probe_vel[0];
-        initial_state.vel[1] = best_probe_vel[1];
-
-        break;}
-    }*/
   // Create and compute cost of all samples N
   for (int n=0; n < pi->N; n++){
 
@@ -283,7 +256,7 @@ void compute_optimal_controls(struct PIController *pi, struct pi_state_t *st, st
       }
 
       float dist_unit = 0;
-/*      float dist_wp = 0;
+      float dist_wp = 0;
       switch (pi->TASK){
         case 0:
 
@@ -307,19 +280,18 @@ void compute_optimal_controls(struct PIController *pi, struct pi_state_t *st, st
             else{ samples_cost[n] += exp( 1 *(pi->COLLISION_DISTANCE - dist_unit));} // pi->COLLISION_PENALTY
           }
 
-          break;}*/
+          break;}
 
 
-/*        case 1:
+        case 1:
 
-        {*/
+        {
           //printf("[task] Follower task selected\n");
 
           // Cohesion cost
           float dist_leader = (internal_state.pos[0]- internal_state.pos_rel[0].N) * (internal_state.pos[0]- internal_state.pos_rel[0].N) + (internal_state.pos[1]- internal_state.pos_rel[0].E) * (internal_state.pos[1]- internal_state.pos_rel[0].E);
           if(dist_leader < pi->COHESION_DISTANCE ){}
           else{
-            //samples_cost[n] += exp(pi->COHESION_PENALTY *(dist_leader - pi->COHESION_DISTANCE));
             samples_cost[n] += (100 *(dist_leader - pi->COHESION_DISTANCE));
           }
 
@@ -332,9 +304,9 @@ void compute_optimal_controls(struct PIController *pi, struct pi_state_t *st, st
             }
           }
 
-/*          break;}*/
+         break;}
 
-    //  }
+     }
     }
 
     if(isnan(samples_cost[n])){
@@ -529,7 +501,7 @@ void select_probe(uint8_t sampling_method ,uint8_t num_probes, int angle, float 
   float half_dh = pi->dh*0.5;
   float u_horizon[pi->iH][pi->dimU];
 
-  //printf("Sampling method %d\n", sampling_method);
+
   //TODO: Send this to the function instead of doing it again
   for (int i = 0; i < pi->dimU; i++){
     initial_state.pos[i] = st->pos[i];
@@ -619,16 +591,15 @@ void select_probe(uint8_t sampling_method ,uint8_t num_probes, int angle, float 
       }
 
 
-      //float dist_wp = 0.0;
+      float dist_wp = 0.0;
       float dist_unit = 0.0;
 
 
-          // Leader cohesion cost !!!! Assumed leader pos 0 !!!
+          // Leader cohesion cost !!!! Leader is assumed to have have index 0 !!!
           float dist_leader = (internal_state_probes.pos[0]- internal_state_probes.pos_rel[0].N) * (internal_state_probes.pos[0]- internal_state_probes.pos_rel[0].N) + (internal_state_probes.pos[1]- internal_state_probes.pos_rel[0].E) * (internal_state_probes.pos[1]- internal_state_probes.pos_rel[0].E);
           if(dist_leader < pi->COHESION_DISTANCE ){}
           else{
-            //samples_cost_probes[p] += exp(pi->COHESION_PENALTY *(dist_leader - pi->COHESION_DISTANCE));
-            samples_cost_probes[p] += (pi->COHESION_PENALTY *(dist_leader - pi->COHESION_DISTANCE));
+             samples_cost_probes[p] += (pi->COHESION_PENALTY *(dist_leader - pi->COHESION_DISTANCE));
           }
 
 
@@ -651,7 +622,7 @@ void select_probe(uint8_t sampling_method ,uint8_t num_probes, int angle, float 
       min_cost_index = p;
     }
   }
-  //printf("Min cost index %d\n", min_cost_index);
+
   if(min_cost_index != (num_probes -1)){
     for(int h = 0; h < pi->iH; h++){
       float _UProbes_new[1][pi->dimU];
