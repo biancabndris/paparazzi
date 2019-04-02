@@ -94,7 +94,6 @@ static inline void set_state(struct pi_state_t *st, uint8_t rel_units){
 
 
   uint8_t *ac_ids = acInfoGetAcIds();
-  //uint8_t id = 1;
   for(uint8_t u=0; u< rel_units; u++){
 
     uint8_t follower_id = *(ac_ids+2+u);

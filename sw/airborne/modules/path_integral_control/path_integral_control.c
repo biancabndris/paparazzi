@@ -63,7 +63,7 @@ static void pi_telem_send(struct transport_tx *trans, struct link_device *dev)
       &pi_result.vel.x, &pi_result.vel.y, &pi_result.variance, &wp.pos_E, &wp.pos_N, &pi.TASK, &pi.SAMPLING_METHOD, &pi.BEST_PROBE);
   pthread_mutex_unlock(&pi_mutex);
 }
-//&filtered_result[0], &filtered_result[1], &pi_result.vel.x, &pi_result.vel.y
+
 static void relative_ac_telem_send(struct transport_tx *trans, struct link_device *dev)
 {
   pthread_mutex_lock(&pi_mutex);
@@ -87,7 +87,7 @@ static void *pi_calc_thread(void *arg);
 void set_wp(void);
 void check_wp(void);
 void pi_init_filters(void);
-//bool check_wp_followers(void);
+
 
 int counter, counter_probe;
 uint8_t leader_pos_index = 0;
@@ -99,6 +99,8 @@ bool leader_set = false;
 bool catched = false;
 bool pi_start = false;
 uint8_t laps = 0;
+
+
 /**
  * Initialize the path integral module
  */
@@ -110,21 +112,11 @@ void pi_init(void)
 
   // Update state information
   set_state(&st, pi.rel_units);
-  // Find leader index
 
   set_wp();
-
-
   counter = 0;
   counter_probe = 0;
-  //set_trajectory(&trajectory);
 
-  // Initialize the wp
-  //static uint8_t traj[1] = {WP_p0};
-  //printf("WP %d, %d \n",WP_p0, WP_p0);
-  //wp.pos_N = trajectory.wps[0].pos_N;
-  //wp.pos_E = trajectory.wps[0].pos_E;
-  //wp.wp_index = trajectory.wps[0].wp_index;
   //pi_init_filters();
 
 #if PERIODIC_TELEMETRY
@@ -166,7 +158,7 @@ void stop_thread(void)
 static void *pi_calc_thread(void *arg __attribute__((unused)))
 {
   while(true){
-    struct timespec start, finish, finish2;
+    struct timespec start, finish;
     clock_gettime(CLOCK_MONOTONIC, &start);
 
     //Copy the state
@@ -177,11 +169,11 @@ static void *pi_calc_thread(void *arg __attribute__((unused)))
     memcpy(&temp_wp, &wp, sizeof(struct pi_wp_t));
     pthread_mutex_unlock(&pi_mutex);
 
-    //Compute the optimal controls
+
     struct pi_result_t temp_result;
+    float elapsed;
 
-    float elapsed, elapsed2;
-
+    // Calculate the optimal controls
     bool success = pi_calc_timestep(&pi, &temp_state, &temp_wp, &temp_result);
 
     pthread_mutex_lock(&pi_mutex);
@@ -204,10 +196,6 @@ static void *pi_calc_thread(void *arg __attribute__((unused)))
       //printf("Max freq %f, waiting time %d\n", max_freq, waiting_time);
     }
 
-    clock_gettime(CLOCK_MONOTONIC, &finish2);
-    elapsed2 = (finish2.tv_sec - start.tv_sec);
-    elapsed2 += (finish2.tv_nsec - start.tv_nsec) / 1000000000.0;
-
       }
   return 0;
 }
@@ -223,43 +211,31 @@ void pi_run(void){
   set_state(&st, pi.rel_units);
   check_wp();
 
+  // Find the leader index which the followers need to follow
   if(!leader_set && pi.TASK == 1){
     for(uint8_t i = 0; i< pi.rel_units; i++){
-      //printf("ac id %d leader id %d \n", st.pos_rel[i].AC_id, pi.following_id);
       if(st.pos_rel[i].AC_id == pi.following_id){
         pi.following_index = i;
         leader_set = true;
       }
     }
 
-    //printf("leader id %d \n",pi.following_index);
   }
 
-  //printf("check state %d\n", pi_got_result);
-  //if(pi.TASK == 0){
-   // check_wp();
-  //}
 
 
 
   if (pi_got_result){
-    /*if(catched){
-      uint32_t now_ts = get_sys_time_usec();
-      AbiSendMsgPATH_INTEGRAL(PATH_INTEGRAL_ID, now_ts,
-          0.0,
-          0.0);
-      pi_got_result = false;
-    }else{*/
 
+    // Filter and bound the output if desired
     //update_butterworth_2_low_pass(&comm_vel[0], pi_result.vel.x);
     //update_butterworth_2_low_pass(&comm_vel[1], pi_result.vel.y);
-    //printf("vel %f, filtered %f\n", pi_result.vel.x,comm_vel[0].o[0]);
-
     //pi_result.vel.x = comm_vel[0].o[0];
     //pi_result.vel.y = comm_vel[1].o[0];
     //Bound(pi_result.vel.x ,-pi.MAX_SPEED, pi.MAX_SPEED);
     //Bound(pi_result.vel.x ,-pi.MAX_SPEED, pi.MAX_SPEED);
 
+    // Check valid data and send message
     if(!isnan(pi_result.vel.x) && !isnan(pi_result.vel.y) ){
       //filtered_result[0] = pi_result.vel.x;
       //filtered_result[1] = pi_result.vel.y;
@@ -271,60 +247,7 @@ void pi_run(void){
       pi_got_result = false;
     }
 
-
-
-    //}
   }
-
-    //////////////////////////////////////
-
-    /*if(pi.TASK == 1 && pi_start){
-
-      if(counter == 40){
-        if(leader_pos_index < 1200){
-          LeaderPos[leader_pos_index][0] = st.pos_rel[pi.following_index].N;
-          LeaderPos[leader_pos_index][1] = st.pos_rel[pi.following_index].E;
-
-        }else{
-          leader_pos_index = 0;
-          LeaderPos[leader_pos_index][0] = st.pos_rel[pi.following_index].N;
-          LeaderPos[leader_pos_index][1] = st.pos_rel[pi.following_index].E;
-
-        }
-
-        if(leader_pos_index >= DELAY){
-          wp.pos_N = LeaderPos[leader_pos_index][0];
-          wp.pos_E = LeaderPos[leader_pos_index][1];
-        }else{
-          wp.pos_N = st.pos[0];
-          wp.pos_E = st.pos[1];
-        }
-        bool next = check_wp_followers();
-        if(next){
-          f_index += 1;
-
-        }
-        leader_pos_index += 1;
-        counter = -1;
-      }
-
-        if(counter == 0){
-          delayed_N = st.pos_rel[0].N;
-          delayed_E = st.pos_rel[0].E;
-        }
-        if(counter == 40){
-          wp.pos_N = delayed_N;
-          wp.pos_E = delayed_E;
-          counter = -1;
-        }
-
-      counter++;
-    }
-*/
-    ////////////////////////////////////
-
-
-
 
   pthread_mutex_unlock(&pi_mutex);
 
@@ -347,13 +270,11 @@ uint8_t pi_follow_leader(void){
   pi.TASK = 1;
   printf("[task] Task changed to follower");
   init_controls(&pi);
-  //pi_start = true;
   return pi.TASK;
 }
 
 
 uint8_t pi_circle_wp(void){
-
   pi.TASK = 2;
   printf("[task] Task changed to circling");
   set_wp();
@@ -361,7 +282,7 @@ uint8_t pi_circle_wp(void){
   return pi.TASK;
 }
 
-
+// Set initial wp depending on the task type
 void set_wp(void){
 
   if(pi.TASK == 0){
@@ -386,56 +307,34 @@ void set_wp(void){
   }
 }
 
+// Check if wp is reached
 void check_wp(void){
 
   struct EnuCoor_i current_wp = {wp.pos_E/0.0039063, wp.pos_N/0.0039063, 1/0.0039063};
   float dist = get_dist2_to_point(&current_wp);
   if(dist < TRAJ_THR*TRAJ_THR){
     if(wp.wp_index < NUM_WPS-1){
-/*      uint8_t wp_index;
-      if(laps >= 2){
-        wp_index = wp.wp_index - 1;
-      }
-      else{
-        wp_index = wp.wp_index + 1;
-      }*/
       uint8_t wp_index = wp.wp_index + 1;
       wp.pos_N = trajectory.wps[wp_index].pos_N;
       wp.pos_E = trajectory.wps[wp_index].pos_E;
       wp.wp_index = wp_index;
     }
     else{
-/*      if(laps >= 2 ){
-        wp.pos_N = trajectory.wps[NUM_WPS-2].pos_N;
-        wp.pos_E = trajectory.wps[NUM_WPS-2].pos_E;
-        wp.wp_index = NUM_WPS-2;
-      }*/
       wp.pos_N = trajectory.wps[0].pos_N;
       wp.pos_E = trajectory.wps[0].pos_E;
       wp.wp_index = 0;
-      //laps += 1;
     }
   }
 
 }
 
-/*bool check_wp_followers(void){
-  bool reached = false;
-  struct EnuCoor_i current_wp = {wp.pos_E/0.0039063, wp.pos_N/0.0039063, 1/0.0039063};
-  float dist = get_dist2_to_point(&current_wp);
-  if(dist < TRAJ_THR*TRAJ_THR){
-    reached = true;
 
-  }
-  return reached;
-}*/
 
 void pi_init_filters(void)
 {
-  // tau = 1/(2*pi*Fc)
   float tau = 1.0 / (2.0 * M_PI * 20);
   float sample_time = 1.0 / 15;
-  // Filtering of gyroscope and actuators
+
   for (int8_t i = 0; i < 2; i++) {
     init_butterworth_2_low_pass(&comm_vel[i], tau, sample_time, 0.0);
 
